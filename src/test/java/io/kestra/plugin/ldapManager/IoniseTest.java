@@ -60,7 +60,7 @@ public class IoniseTest {
         for (String expected_result : expected_results) {
             assertThat("Result file should exist", this.storageInterface.exists(null, results.get(idx)), is(true));
             try (InputStream streamResult = this.storageInterface.get(null, results.get(idx))) {
-                String result = new String(streamResult.readAllBytes(), StandardCharsets.UTF_8);
+                String result = new String(streamResult.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n");
 
                 System.out.println("Got :\n" + result);
                 System.out.println("Expecting :\n" + expected_result);

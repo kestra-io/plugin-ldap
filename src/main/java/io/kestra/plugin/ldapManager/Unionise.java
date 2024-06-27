@@ -25,7 +25,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -128,27 +127,9 @@ public class Unionise extends Task implements RunnableTask<Unionise.Output> {
             processIonEntries(ionReader, ldifWriter);
             ldifWriter.flush();
 
-            byte postProcessedContent[] = removeLeadingSpaces(byteArrayOutputStream.toByteArray());
-            File tempFile = runContext.workingDir().createTempFile(postProcessedContent, ".ldif").toFile();
-            //TODO: avoid using "removeLeadingSpaces"
-            //File tempFile = runContext.workingDir().createTempFile(byteArrayOutputStream.toByteArray(), ".ldif").toFile();
+            File tempFile = runContext.workingDir().createTempFile(byteArrayOutputStream.toByteArray(), ".ldif").toFile();
             return runContext.storage().putFile(tempFile);
         }
-    }
-
-    /**
-     * Disgusting post process method to fix an CRLF/LF insertion problem.
-     * @param input The input string with potential leading spaces.
-     * @return A string with leading spaces removed from each line.
-     */
-    @Deprecated
-    private byte[] removeLeadingSpaces(byte input[]) {
-        String[] lines = (new String(input, StandardCharsets.UTF_8)).split(System.lineSeparator());
-        StringBuilder result = new StringBuilder();
-        for (String line : lines) {
-            result.append(line.stripLeading()).append("\n");
-        }
-        return result.toString().getBytes();
     }
 
     /**

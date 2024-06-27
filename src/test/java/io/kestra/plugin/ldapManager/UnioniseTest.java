@@ -60,7 +60,7 @@ public class UnioniseTest {
         for (String expected_result : expected_results) {
             assertThat("Result file should exist", this.storageInterface.exists(null, results.get(idx)), is(true));
             try (InputStream streamResult = this.storageInterface.get(null, results.get(idx))) {
-                String result = new String(streamResult.readAllBytes(), StandardCharsets.UTF_8);
+                String result = new String(streamResult.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n");
 
                 System.out.println("Got :\n" + result);
                 System.out.println("Expecting :\n" + expected_result);
@@ -98,6 +98,7 @@ public class UnioniseTest {
             description: Melusine lover as well
             someOtherAttribute: perhaps 2
             someOtherAttribute: perhapsAgain 2
+
             """);// fst file
         expectations.add("""
             dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
@@ -107,6 +108,7 @@ public class UnioniseTest {
             dn: cn=yennefer@orga.com,ou=diffusion_list,dc=orga,dc=com
             description: Some description 2
             someOtherAttribute: Loves herself
+
             """);// scnd file
         /////////////////////////
 

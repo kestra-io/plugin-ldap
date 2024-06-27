@@ -26,7 +26,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 @MicronautTest
 @TestInstance(value = Lifecycle.PER_CLASS)
-public class RetrieveTest {
+public class SearchTest {
     public static GenericContainer<?> ldap;
 
     @Inject
@@ -47,8 +47,8 @@ public class RetrieveTest {
         ldap.close();
     }
 
-    private Retrieve makeTask(String filter, String baseDn, List<String> attributes) {
-        return Retrieve.builder()
+    private Search makeTask(String filter, String baseDn, List<String> attributes) {
+        return Search.builder()
             .hostname(ldap.getHost())
             .port(ldap.getMappedPort(Commons.EXPOSED_PORTS[0]))
             .userDn(Commons.USER)
@@ -61,7 +61,7 @@ public class RetrieveTest {
             .build();
     }
 
-    private void assertFilesEq(Retrieve.Output runOutput, String expected_result) {
+    private void assertFilesEq(Search.Output runOutput, String expected_result) {
         URI result_uri = runOutput.getUri();
         assertThat("Result file should exist", this.storageInterface.exists(null, result_uri), is(true));
         try (InputStream streamResult = this.storageInterface.get(null, result_uri)) {
@@ -91,8 +91,8 @@ public class RetrieveTest {
         /////////////////////////
 
         RunContext runContext = this.runContextFactory.of();
-        Retrieve task = makeTask(filter, baseDn, attributes);
-        Retrieve.Output runOutput = task.run(runContext);
+        Search task = makeTask(filter, baseDn, attributes);
+        Search.Output runOutput = task.run(runContext);
         assertFilesEq(runOutput, expected);
     }
 }

@@ -25,7 +25,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 @MicronautTest
-public class UnioniseTest {
+public class IonToLdifTest {
     @Inject
     private RunContextFactory runContextFactory;
 
@@ -54,7 +54,7 @@ public class UnioniseTest {
         return this.runContextFactory.of(ImmutableMap.copyOf(kestraPaths));
     }
 
-    private void assertFilesEq(Unionise.Output runOutput, List<String> expected_results) {
+    private void assertFilesEq(IonToLdif.Output runOutput, List<String> expected_results) {
         List<URI> results = runOutput.getUrisList();
         Integer idx = 0;
         for (String expected_result : expected_results) {
@@ -116,8 +116,8 @@ public class UnioniseTest {
         for (Integer i = 0; i < inputs.size(); i++) {
             kestraFilepaths.add(String.format("{{file%d}}", i));
         }
-        Unionise task = Unionise.builder().inputs(kestraFilepaths).build();
-        Unionise.Output runOutput = task.run(runContext);
+        IonToLdif task = IonToLdif.builder().inputs(kestraFilepaths).build();
+        IonToLdif.Output runOutput = task.run(runContext);
         assertFilesEq(runOutput, expectations);
     }
 }

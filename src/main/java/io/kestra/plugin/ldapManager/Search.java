@@ -65,7 +65,7 @@ import org.slf4j.Logger;
         )
     }
 )
-public class Retrieve extends LdapConnection implements RunnableTask<Retrieve.Output> {
+public class Search extends LdapConnection implements RunnableTask<Search.Output> {
     /**
      * INPUTS ----------------------------------------------------------------------------------------------------------------- //
     **/
@@ -113,7 +113,7 @@ public class Retrieve extends LdapConnection implements RunnableTask<Retrieve.Ou
     **/
 
     @Override
-    public Retrieve.Output run(RunContext runContext) throws Exception {
+    public Search.Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
         List<String> results = new ArrayList<>();
         URI storedResults = null;

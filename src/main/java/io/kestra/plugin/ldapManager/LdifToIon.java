@@ -59,7 +59,7 @@ import org.slf4j.Logger;
             )
     }
 )
-public class Ionise extends Task implements RunnableTask<Ionise.Output> {
+public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
     /**
      * INPUTS ------------------------------------------------------------------------------------------------------------------- //
     **/
@@ -92,7 +92,7 @@ public class Ionise extends Task implements RunnableTask<Ionise.Output> {
     private Integer count;
 
     @Override
-    public Ionise.Output run(RunContext runContext) throws Exception {
+    public LdifToIon.Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
         List<URI> storedResults = new ArrayList<>();
         this.count = 0;

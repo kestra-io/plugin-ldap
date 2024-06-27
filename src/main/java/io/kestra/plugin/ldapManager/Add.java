@@ -59,7 +59,7 @@ import org.slf4j.Logger;
         )
     }
 )
-public class Input extends LdapConnection implements RunnableTask<VoidOutput> {
+public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
     /**
      * INPUTS ----------------------------------------------------------------------------------------------------------------- //
     **/

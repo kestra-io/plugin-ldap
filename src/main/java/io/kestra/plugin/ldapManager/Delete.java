@@ -52,8 +52,7 @@ import org.slf4j.Logger;
                 "userDn: cn=admin,dc=orga,dc=fr",
                 "password: admin",
                 "inputs:",
-                "   - uid=melusine.theBest,ou=People,dc=orga,dc=en",
-                "   - uid=john.doe,ou=People,dc=orga,dc=fr",
+                "   - \"{{outputs.someTask.uri_of_ldif_formated_file}}\"",
                 "hostname: 0.0.0.0",
                 "port: 15060"
             }

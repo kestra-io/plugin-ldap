@@ -9,10 +9,10 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.testcontainers.containers.GenericContainer;
 
+import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import java.net.URI;
 import java.util.List;
@@ -24,7 +24,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 
-@MicronautTest
+@KestraTest
 @TestInstance(value = Lifecycle.PER_CLASS)
 public class SearchTest {
     public static GenericContainer<?> ldap;
@@ -47,7 +47,7 @@ public class SearchTest {
         ldap.close();
     }
 
-    private Search makeTask(String filter, String baseDn, List<String> attributes) {
+    public static Search makeTask(String filter, String baseDn, List<String> attributes, GenericContainer<?> ldap) {
         return Search.builder()
             .hostname(ldap.getHost())
             .port(ldap.getMappedPort(Commons.EXPOSED_PORTS[0]))
@@ -91,7 +91,7 @@ public class SearchTest {
         /////////////////////////
 
         RunContext runContext = this.runContextFactory.of();
-        Search task = makeTask(filter, baseDn, attributes);
+        Search task = makeTask(filter, baseDn, attributes, ldap);
         Search.Output runOutput = task.run(runContext);
         assertFilesEq(runOutput, expected);
     }

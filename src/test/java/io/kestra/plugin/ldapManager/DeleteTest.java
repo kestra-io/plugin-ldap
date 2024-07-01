@@ -11,11 +11,11 @@ import org.testcontainers.containers.GenericContainer;
 
 import com.google.common.collect.ImmutableMap;
 
+import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.utils.IdUtils;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import java.net.URI;
 import java.util.List;
@@ -23,15 +23,10 @@ import java.util.Map;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
 
 
-@MicronautTest
+@KestraTest
 @TestInstance(value = Lifecycle.PER_CLASS)
 public class DeleteTest {
     public static GenericContainer<?> ldap;

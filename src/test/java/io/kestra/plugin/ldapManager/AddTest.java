@@ -1,33 +1,40 @@
 package io.kestra.plugin.ldapManager;
 
-import static org.junit.jupiter.api.Assertions.fail;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.TestInstance.Lifecycle;
-import org.testcontainers.containers.GenericContainer;
-
 import com.google.common.collect.ImmutableMap;
 
+import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.utils.IdUtils;
-import io.kestra.core.junit.annotations.KestraTest;
+
 import jakarta.inject.Inject;
-import java.net.URI;
-import java.util.List;
-import java.util.Map;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+
+import java.net.URI;
+
+import java.nio.charset.StandardCharsets;
+
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import static org.hamcrest.Matchers.is;
+import java.util.List;
+import java.util.Map;
+
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance.Lifecycle;
+import org.junit.jupiter.api.TestInstance;
+
+import org.testcontainers.containers.GenericContainer;
+
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+
+import static org.junit.jupiter.api.Assertions.fail;
 
 
 @KestraTest

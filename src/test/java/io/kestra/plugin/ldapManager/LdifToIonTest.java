@@ -1,9 +1,5 @@
 package io.kestra.plugin.ldapManager;
 
-import static org.junit.jupiter.api.Assertions.fail;
-
-import org.junit.jupiter.api.Test;
-
 import com.google.common.collect.ImmutableMap;
 
 import io.kestra.core.junit.annotations.KestraTest;
@@ -11,18 +7,28 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.utils.IdUtils;
+
 import jakarta.inject.Inject;
-import java.net.URI;
+
 import java.io.ByteArrayInputStream;
-import java.util.List;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
 import java.io.InputStream;
+
+import java.net.URI;
+
 import java.nio.charset.StandardCharsets;
-import static org.hamcrest.Matchers.is;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+
+import static org.junit.jupiter.api.Assertions.fail;
 
 @KestraTest
 public class LdifToIonTest {

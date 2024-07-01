@@ -23,12 +23,7 @@ import java.util.Map;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
 
 
 @MicronautTest

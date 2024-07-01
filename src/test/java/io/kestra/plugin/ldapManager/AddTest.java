@@ -23,7 +23,6 @@ import java.util.Map;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -88,6 +87,23 @@ public class AddTest {
         return this.runContextFactory.of(ImmutableMap.copyOf(kestraPaths));
     }
 
+    private void assertResult(List<String> expectedList, Search.Output searchResult) {
+        URI file = searchResult.getUri();
+        assertThat("Result file should exist", this.storageInterface.exists(null, file), is(true));
+        String expectedLdif = String.join("\n", expectedList);
+        try (InputStream streamResult = this.storageInterface.get(null, file)) {
+            String result = new String(streamResult.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n");
+
+            System.out.println("CAUTION !! THIS TEST DEPENDS HEAVILY ON THE SEARCH TASK, CHECK THAT ALL --SEARCH TESTS-- PASSED.");
+            System.out.println("Got :\n" + result);
+            System.out.println("Expecting :\n" + expectedLdif);
+            assertThat("Result should match the reference", result.equals(expectedLdif));
+        } catch (IOException e) {
+            System.err.println(e.getMessage());
+            fail("Unable to load results files.");
+        }
+    }
+
     @Test
     void basic_test() throws Exception {
         List<String> inputs = new ArrayList<>();
@@ -95,25 +111,17 @@ public class AddTest {
 
         // specific test values :
         inputs.add("""
-            dn: cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com
-            description: Some description 1
-            someOtherAttribute: perhaps
-            description: Melusine lover
-            someOtherAttribute: perhapsAgain
-
-            dn: cn=tony@orga.com,ou=diffusion_list,dc=orga,dc=com
-            description: Some description 2
-            description: Melusine lover as well
-            someOtherAttribute: perhaps 2
-            someOtherAttribute: perhapsAgain 2""");// fst file
-        inputs.add("""
-            dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
-            description: Some description 3
-            someOtherAttribute: Melusine lover, obviously
-
-            dn: cn=yennefer@orga.com,ou=diffusion_list,dc=orga,dc=com
-            description: Some description 2
-            someOtherAttribute: Loves herself""");// scnd file
+            objectClass: inetOrgPerson
+            cn: Input Man
+            sn: Input
+            description: Mutant
+            employeeType: Captain
+            employeeType: Pilot
+            givenName: Input
+            mail: Input@planetexpress.com
+            ou: Delivering Crew
+            uid: input
+            userPassword: input""");// fst file
         /////////////////////////
 
         RunContext runContext = getRunContext(inputs);
@@ -122,6 +130,8 @@ public class AddTest {
         }
         Add task = makeTask(kestraFilepaths);
         task.run(runContext);
-        //TODO: check LDAP server return codes
+        Search check_task = SearchTest.makeTask("(sn=Input)", "dc=planetexpress,dc=com", new ArrayList<String>());
+        Search.Output search_result = check_task.run(runContext);
+        assertResult(inputs, search_result);
     }
 }

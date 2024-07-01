@@ -47,7 +47,7 @@ public class SearchTest {
         ldap.close();
     }
 
-    private Search makeTask(String filter, String baseDn, List<String> attributes) {
+    public static Search makeTask(String filter, String baseDn, List<String> attributes) {
         return Search.builder()
             .hostname(ldap.getHost())
             .port(ldap.getMappedPort(Commons.EXPOSED_PORTS[0]))

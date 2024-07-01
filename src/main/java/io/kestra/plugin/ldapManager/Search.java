@@ -21,6 +21,7 @@ import java.io.File;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import lombok.Builder.Default;
@@ -80,11 +81,18 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
 
     @Schema(
         title = "Attributes",
-        description = "Specific attributes to retrieve from the filtered entries. Retrieves all attributes by default."
+        description = """
+            Specific attributes to retrieve from the filtered entries. Retrieves all attributes by default.
+            Sepcial attributes may be specified :
+            "+"   -> OPERATIONAL_ATTRIBUTES
+            "1.1" -> NO_ATTRIBUTES
+            "0.0" -> ALL_ATTRIBUTES_EXCEPT_OPERATIONAL
+                `--> This special attribute canno't be combined with other attributes and the search will ignore everything else.
+            """
     )
     @PluginProperty(dynamic = true)
     @Default
-    private List<String> attributes = null;
+    private List<String> attributes = Arrays.asList(SearchRequest.ALL_USER_ATTRIBUTES);
 
     @Schema(
         title = "Base DN",
@@ -93,6 +101,19 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
     @PluginProperty(dynamic = true)
     @Default
     private String baseDn = "ou=system";
+
+    @Schema(
+        title = "SUB",
+        description = """
+            Search scope of the filter :
+            BASE -- Indicates that only the entry specified by the base DN should be considered.
+            ONE -- Indicates that only entries that are immediate subordinates of the entry specified by the base DN (but not the base entry itself) should be considered.
+            SUB -- Indicates that the base entry itself and any subordinate entries (to any depth) should be considered.
+            SUBORDINATE_SUBTREE -- Indicates that any subordinate entries (to any depth) below the entry specified by the base DN should be considered, but the base entry itself should not be considered, as described in draft-sermersheim-ldap-subordinate-scope."""
+    )
+    @PluginProperty(dynamic = true)
+    @Default
+    private SearchScope sub = SearchScope.SUB;
 
     /**
      * OUTPUTS ------------------------------------------------------------------------------------------------------------------- //
@@ -124,12 +145,9 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
         try (LDAPConnection connection = this.getLdapConnection()) {
             filter = filter.replaceAll("\n\\s*", "");
             SearchRequest request = new SearchRequest(
-                baseDn,
-                SearchScope.SUB,
-                filter,
-                attributes == null ? new String[]{SearchRequest.ALL_USER_ATTRIBUTES} : attributes.toArray(new String[0])
+                baseDn, sub, filter,
+                attributes.contains("0.0") ? SearchRequest.REQUEST_ATTRS_DEFAULT : attributes.toArray(new String[0])
             );
-
             Long startTime = System.currentTimeMillis();
             SearchResult result = connection.search(request);
             if (result.getResultCode() == ResultCode.SUCCESS) {

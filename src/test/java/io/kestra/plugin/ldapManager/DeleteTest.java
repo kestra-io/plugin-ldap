@@ -49,6 +49,10 @@ public class DeleteTest {
     @Inject
     private StorageInterface storageInterface;
 
+    /**
+     * Start a LDAP server in a container.
+     * Configuration may be done through the "Commons.java" class file.
+     */
     @SuppressWarnings("resource")
     @BeforeAll
     private void prepare() {
@@ -56,11 +60,16 @@ public class DeleteTest {
         ldap.start();
     }
 
+    /** Stop the container and release its ressources. */
     @AfterAll
     private void clear() {
         ldap.close();
     }
 
+    /**
+     * Assert the result file content is blank.
+     * @param searchResult : The output of the search task to make the comparison with.
+     */
     private void assertResult(Search.Output searchResult) {
         URI file = searchResult.getUri();
         assertThat("Result file should exist", this.storageInterface.exists(null, file), is(true));
@@ -77,6 +86,11 @@ public class DeleteTest {
         }
     }
 
+    /**
+     * Makes an Deletion task and sets its connecion options to the test LDAP server.
+     * @param files : Kestra URI(s) of LDIF formated file(s) containing DN(s).
+     * @return A ready to run Deletion task.
+     */
     private Delete makeTask(List<String> files) {
         return Delete.builder()
             .hostname(ldap.getHost())
@@ -89,6 +103,11 @@ public class DeleteTest {
             .build();
     }
 
+    /**
+     * Insert provided contents in separated files in the Kestra storage.
+     * @param contents : A list of string to input in Kestra files.
+     * @return A new context where each newly created file may be accessed with a pebble expression like {{ file0 }}, {{ file1 }}, {{ fileEtc }}
+     */
     private RunContext getRunContext(List<String> contents) {
         Map<String, String> kestraPaths = new HashMap<>();
         Integer idx = 0;

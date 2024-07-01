@@ -2,6 +2,9 @@ package io.kestra.plugin.ldapManager;
 
 import org.testcontainers.utility.DockerImageName;
 
+/**
+ * Contains immutable common values to test LDAP server responses to the plugin tasks.
+ */
 final class Commons {
 
     /** Docker image ref : https://hub.docker.com/r/rroemhild/test-openldap */

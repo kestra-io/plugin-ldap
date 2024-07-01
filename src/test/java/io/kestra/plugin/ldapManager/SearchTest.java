@@ -47,6 +47,14 @@ public class SearchTest {
         ldap.close();
     }
 
+    /**
+     * Makes an Search task and sets its connecion options to the test LDAP server.
+     * @param filter : The filter to use for the search.
+     * @param baseDn : The DN to search from.
+     * @param attributes : The attributes to retrieve.
+     * @param ldap : The ldap container - Should be the conainter of the running test class.
+     * @return A ready to run Search task.
+     */
     public static Search makeTask(String filter, String baseDn, List<String> attributes, GenericContainer<?> ldap) {
         return Search.builder()
             .hostname(ldap.getHost())
@@ -61,6 +69,11 @@ public class SearchTest {
             .build();
     }
 
+    /**
+     * Assert the equality between the result file content provided by a Search task and a string.
+     * @param expected_result : The string representing the expected content of the search task.
+     * @param runOutput : The output of the search task to make the comparison with.
+     */
     private void assertFilesEq(Search.Output runOutput, String expected_result) {
         URI result_uri = runOutput.getUri();
         assertThat("Result file should exist", this.storageInterface.exists(null, result_uri), is(true));

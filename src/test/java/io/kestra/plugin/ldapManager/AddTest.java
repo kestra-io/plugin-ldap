@@ -67,7 +67,7 @@ public class AddTest {
 
     /**
      * Makes an Addition task and sets its connecion options to the test LDAP server.
-     * @param files : Kestra URI(s) of LDIF formated file(s) containing DN(s).
+     * @param files : Kestra URI(s) of LDIF formated file(s) containing DN(s) and attributes.
      * @return A ready to run Addition task.
      */
     private Add makeTask(List<String> files) {

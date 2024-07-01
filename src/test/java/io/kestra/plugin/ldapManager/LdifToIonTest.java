@@ -38,6 +38,11 @@ public class LdifToIonTest {
     @Inject
     private StorageInterface storageInterface;
 
+    /**
+     * Insert provided contents in separated files in the Kestra storage.
+     * @param contents : A list of string to input in Kestra files.
+     * @return A new context where each newly created file may be accessed with a pebble expression like {{ file0 }}, {{ file1 }}, {{ fileEtc }}
+     */
     private RunContext getRunContext(List<String> contents) {
         Map<String, String> kestraPaths = new HashMap<>();
         Integer idx = 0;
@@ -60,6 +65,11 @@ public class LdifToIonTest {
         return this.runContextFactory.of(ImmutableMap.copyOf(kestraPaths));
     }
 
+    /**
+     * Assert the equality between result file(s) content provided by a IonToLdif transformation task and string(s).
+     * @param expected_results : Strings representing the expected content of each transformation.
+     * @param runOutput : The output of the transformation task to make the comparison with.
+     */
     private void assertFilesEq(LdifToIon.Output runOutput, List<String> expected_results) {
         List<URI> results = runOutput.getUrisList();
         Integer idx = 0;

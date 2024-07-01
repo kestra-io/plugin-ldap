@@ -15,7 +15,7 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.utils.IdUtils;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
 import java.net.URI;
 import java.util.List;
@@ -30,7 +30,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 
-@MicronautTest
+@KestraTest
 @TestInstance(value = Lifecycle.PER_CLASS)
 public class AddTest {
     public static GenericContainer<?> ldap;
@@ -111,6 +111,7 @@ public class AddTest {
 
         // specific test values :
         inputs.add("""
+            dn: cn=Input Man,ou=people,dc=planetexpress,dc=com
             objectClass: inetOrgPerson
             cn: Input Man
             sn: Input
@@ -121,7 +122,8 @@ public class AddTest {
             mail: Input@planetexpress.com
             ou: Delivering Crew
             uid: input
-            userPassword: input""");// fst file
+            userPassword: input
+            """);// fst file
         /////////////////////////
 
         RunContext runContext = getRunContext(inputs);
@@ -130,7 +132,7 @@ public class AddTest {
         }
         Add task = makeTask(kestraFilepaths);
         task.run(runContext);
-        Search check_task = SearchTest.makeTask("(sn=Input)", "dc=planetexpress,dc=com", new ArrayList<String>());
+        Search check_task = SearchTest.makeTask("(sn=Input)", "dc=planetexpress,dc=com", new ArrayList<String>(), ldap);
         Search.Output search_result = check_task.run(runContext);
         assertResult(inputs, search_result);
     }

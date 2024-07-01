@@ -50,6 +50,11 @@ public abstract class LdapConnection extends Task {
     @NotNull
     protected String password;
 
+    /**
+     * Opens a connection with user provided informations.
+     * @return A new LDAPConnection to perform action with the LDAP server.
+     * @throws LDAPException
+     */
     protected LDAPConnection getLdapConnection() throws LDAPException {
         return new LDAPConnection(hostname, port, userDn, password);
     }

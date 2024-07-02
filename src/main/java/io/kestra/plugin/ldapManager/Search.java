@@ -159,11 +159,11 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
                     results.add(entry.toLDIFString());
                     entriesFound++;
                 }
+                File tempfile = runContext.workingDir().createTempFile(String.join("\n", results).getBytes() ,".ldif").toFile();
+                storedResults = runContext.storage().putFile(tempfile);
             } else {
                 logger.warn("Search failed with filter {}, LDAP response : {}", filter, result.getResultString());
             }
-            File tempfile = runContext.workingDir().createTempFile(String.join("\n", results).getBytes() ,".ldif").toFile();
-            storedResults = runContext.storage().putFile(tempfile);
         } catch (LDAPException e) {
             logger.error("LDAP error: {}", e.getResultString());
             throw e;

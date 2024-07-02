@@ -123,16 +123,25 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
      * @param connection : The LDAPConnection to the LDAP server.
      */
     private void processEntries(LDIFReader reader, LDAPConnection connection) throws LDAPException, IOException, LDIFException {
-        Entry entry;
-        while ((entry = reader.readEntry()) != null) {
-            long startTime = System.currentTimeMillis();
+        while (true) {
+            Entry entry = null;
+            try {
+                entry = reader.readEntry();
+            } catch (LDIFException e) {
+                logger.error("Cannot read entry: {}", e.getDataLines());
+                continue;
+            }
+            if (entry == null) break;
+
+            additionRequests++;
+            Long startTime = System.currentTimeMillis();
             try {
                 LDAPResult result = connection.add(entry);
                 if (result.getResultCode() == ResultCode.SUCCESS) {
-                    this.additionsTimes.add(System.currentTimeMillis() - startTime);
-                    this.additionsDone++;
+                    additionsTimes.add(System.currentTimeMillis() - startTime);
+                    additionsDone++;
                 } else {
-                    logger.warn("Cannot add entry {}, LDAP response : {}", entry.getDN(), result.getResultString());
+                    logger.warn("Cannot add entry: {}, LDAP response: {}", entry.toLDIF(), result.getResultString());
                 }
             } catch (LDAPException e) {
                 logger.error("Error adding entry {}: {}", entry.getDN(), e.getResultString());

@@ -7,6 +7,12 @@ import com.amazon.ion.system.IonSystemBuilder;
 
 import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.Entry;
+import com.unboundid.ldap.sdk.Modification;
+import com.unboundid.ldap.sdk.ModificationType;
+import com.unboundid.ldif.LDIFAddChangeRecord;
+import com.unboundid.ldif.LDIFDeleteChangeRecord;
+import com.unboundid.ldif.LDIFModifyChangeRecord;
+import com.unboundid.ldif.LDIFRecord;
 import com.unboundid.ldif.LDIFWriter;
 
 import io.kestra.core.models.annotations.Plugin;
@@ -144,7 +150,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
     private void processIonEntries(IonReader ionReader, LDIFWriter ldifWriter) throws IOException {
         while (ionReader.next() != null) {
             ionReader.stepIn();
-            Entry entry = null;
+            LDIFRecord entry = null;
             try {
                 entry = readIonEntry(ionReader);
             } catch (Exception e) {
@@ -152,7 +158,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
             }
             if (entry != null) {
                 try {
-                    ldifWriter.writeEntry(entry);
+                    ldifWriter.writeLDIFRecord(entry);
                     this.count++;
                 } catch (Exception e) {
                     logger.error("Unable to write entry {} : {}", entry.toString(), e.getMessage());
@@ -167,9 +173,11 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
      * @param ionReader : The ION reader to read the entry from.
      * @return The LDIF entry read from the ION reader.
      */
-    private Entry readIonEntry(IonReader ionReader) {
+    private LDIFRecord readIonEntry(IonReader ionReader) {
         String dn = null;
         List<Attribute> attributes = new ArrayList<>();
+        String changeType = null;
+        List<Modification> modifications = new ArrayList<>();
 
         while (ionReader.next() != null) {
             String fieldName = ionReader.getFieldName();
@@ -179,17 +187,81 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
                 ionReader.stepIn();
                 attributes = readAttributes(ionReader);
                 ionReader.stepOut();
+            } else if ("changeType".equals(fieldName)) {
+                changeType = ionReader.stringValue();
+            } else if ("modifications".equals(fieldName) && "modify".equals(changeType)) {
+                ionReader.stepIn();
+                modifications = readModifications(ionReader);
+                ionReader.stepOut();
             } else {
                 logger.warn("Unrecognized field : {}", fieldName);
             }
-            //TODO: manage changeType
         }
 
         if (dn != null) {
-            return new Entry(dn, attributes);
+            if ("add".equals(changeType)) {
+                return new LDIFAddChangeRecord(dn, attributes);
+            } else if ("delete".equals(changeType)) {
+                return new LDIFDeleteChangeRecord(dn);
+            } else if ("modify".equals(changeType)) {
+                return new LDIFModifyChangeRecord(dn, modifications.toArray(new Modification[0]));
+            } else if ("moddn".equals(changeType)) {
+                //TODO: handle this case
+            } else {
+                return new Entry(dn, attributes);
+            }
         }
+
         logger.warn("Unable to make Ion entry from DN : {}, Attributes {}", dn, attributes);
         return null;
+    }
+
+    private List<Modification> readModifications(IonReader ionReader) {
+        List<Modification> modifications = new ArrayList<>();
+        while (ionReader.next() != null) {
+            ionReader.stepIn();
+            String operation = null;
+            String attributeName = null;
+            List<String> values = new ArrayList<>();
+
+            while (ionReader.next() != null) {
+                String fieldName = ionReader.getFieldName();
+                if ("operation".equals(fieldName)) {
+                    operation = ionReader.stringValue();
+                } else if ("attribute".equals(fieldName)) {
+                    attributeName = ionReader.stringValue();
+                } else if ("values".equals(fieldName)) {
+                    ionReader.stepIn();
+                    while (ionReader.next() != null) {
+                        values.add(ionReader.stringValue());
+                    }
+                    ionReader.stepOut();
+                } else {
+                    logger.warn("Unrecognized field in modification: {}", fieldName);
+                }
+            }
+
+            if (operation != null && attributeName != null) {
+                ModificationType modType = null;
+                switch (operation) {
+                    case "ADD":
+                        modType = ModificationType.ADD;
+                        break;
+                    case "DELETE":
+                        modType = ModificationType.DELETE;
+                        break;
+                    case "INCREMENT":
+                        modType = ModificationType.INCREMENT;
+                        break;
+                    case "REPLACE":
+                        modType = ModificationType.REPLACE;
+                        break;
+                }
+                modifications.add(new Modification(modType, attributeName, values.toArray(new String[0])));
+            }
+            ionReader.stepOut();
+        }
+        return modifications;
     }
 
     /**

@@ -130,7 +130,25 @@ public class LdifToIonTest {
 
             dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
             changetype: delete
+
+            dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+            changetype: modrdn
+            newrdn: cn=triss@orga.com
+            deleteOldRDN: 0
+            newsuperior: ou=expeople,dc=example,dc=com
+
+            dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+            changetype: moddn
+            newrdn: cn=triss@orga.com
+            deleteOldRDN: 1
+            newsuperior: ou=expeople,dc=example,dc=com
+
+            dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+            changetype: moddn
+            newrdn: cn=triss@orga.com
+            deleteOldRDN: 1
             """);// third file, includes changeType
+            //TODO: document that (moddn or modrdn -> moddn) and that order is : newrdn -> deleteOldRDN -> newsuperior (optional)
         expectations.add("""
             {dn:"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description 1","Melusine lover"],someOtherAttribute:["perhaps","perhapsAgain"]}}
             {dn:"cn=tony@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description 2","Melusine lover as well"],someOtherAttribute:["perhaps 2","perhapsAgain 2"]}}""");// fst file
@@ -139,7 +157,10 @@ public class LdifToIonTest {
             {dn:"cn=yennefer@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description 2"],someOtherAttribute:["Loves herself"]}}""");// scnd file
         expectations.add("""
             {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"modify",modifications:[{operation:"DELETE",attribute:"description",values:["Some description 3"]},{operation:"ADD",attribute:"description",values:["Some description 4"]},{operation:"REPLACE",attribute:"someOtherAttribute",values:["Loves herself more"]}]}
-            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"delete"}""");// third file
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"delete"}
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",modifications:{newRDN:"cn=triss@orga.com",deleteOldRDN:false,newSuperiorDN:"ou=expeople,dc=example,dc=com"}}  
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",modifications:{newRDN:"cn=triss@orga.com",deleteOldRDN:true,newSuperiorDN:"ou=expeople,dc=example,dc=com"}}   
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",modifications:{newRDN:"cn=triss@orga.com",deleteOldRDN:true}}""");// third file
         /////////////////////////
 
         RunContext runContext = getRunContext(inputs);

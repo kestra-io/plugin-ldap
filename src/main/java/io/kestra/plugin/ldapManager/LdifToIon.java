@@ -12,6 +12,7 @@ import com.unboundid.ldap.sdk.Modification;
 import com.unboundid.ldif.LDIFChangeRecord;
 import com.unboundid.ldif.LDIFException;
 import com.unboundid.ldif.LDIFModifyChangeRecord;
+import com.unboundid.ldif.LDIFModifyDNChangeRecord;
 import com.unboundid.ldif.LDIFReader;
 import com.unboundid.ldif.LDIFRecord;
 
@@ -235,6 +236,9 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
         if (changeRecord.getChangeType() == ChangeType.MODIFY) {
             ionWriter.setFieldName("modifications");
             writeModifications(ionWriter, ((LDIFModifyChangeRecord)changeRecord).getModifications());
+        } else if (changeRecord.getChangeType() == ChangeType.MODIFY_DN) {
+            ionWriter.setFieldName("modifications");
+            writeModifications(ionWriter, (LDIFModifyDNChangeRecord)changeRecord);
         }
 
         ionWriter.stepOut();
@@ -264,6 +268,24 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
             ionWriter.stepOut();
 
             ionWriter.stepOut();
+        }
+        ionWriter.stepOut();
+    }
+
+    /**
+     * Writes an LDIF changeDNRecord modifications to the ION writer.
+     * @param ionWriter : The ION writer to write the entry to.
+     * @param modifications : The LDIF changeDNRecord class from wich to retrieve infos to be written.
+     */
+    private void writeModifications(IonWriter ionWriter, LDIFModifyDNChangeRecord modifications) throws IOException {
+        ionWriter.stepIn(IonType.STRUCT);
+        ionWriter.setFieldName("newRDN");
+        ionWriter.writeString(modifications.getNewRDN());
+        ionWriter.setFieldName("deleteOldRDN");
+        ionWriter.writeBool(modifications.deleteOldRDN());
+        if (modifications.getNewSuperiorDN() != null) {
+            ionWriter.setFieldName("newSuperiorDN");
+            ionWriter.writeString(modifications.getNewSuperiorDN());
         }
         ionWriter.stepOut();
     }

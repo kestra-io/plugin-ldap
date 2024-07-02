@@ -6,9 +6,14 @@ import com.amazon.ion.IonWriter;
 import com.amazon.ion.system.IonSystemBuilder;
 
 import com.unboundid.ldap.sdk.Attribute;
+import com.unboundid.ldap.sdk.ChangeType;
 import com.unboundid.ldap.sdk.Entry;
+import com.unboundid.ldap.sdk.Modification;
+import com.unboundid.ldif.LDIFChangeRecord;
 import com.unboundid.ldif.LDIFException;
+import com.unboundid.ldif.LDIFModifyChangeRecord;
 import com.unboundid.ldif.LDIFReader;
+import com.unboundid.ldif.LDIFRecord;
 
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -134,22 +139,47 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
              InputStream ldifInputStream = runContext.storage().getFile(URI.create(ldifFilePath));
              LDIFReader ldifReader = new LDIFReader(ldifInputStream)) {
 
-            while (true) {
-                Entry entry = null;
-                try {
-                    entry = ldifReader.readEntry();
-                } catch (LDIFException e) {
-                    logger.error("Cannot read entry: {}", e.getDataLines());
-                    continue;
-                }
-                if (entry == null) break;
-                this.found++;
-                writeIonEntry(ionWriter, entry);
-            }
+            processEntries(ldifReader, ionWriter);
             ionWriter.finish();
             String resultContent = byteArrayOutputStream.toString().replace("} {", "}\n{");
             File tempFile = runContext.workingDir().createTempFile(resultContent.getBytes(), ".ion").toFile();
             return runContext.storage().putFile(tempFile);
+        }
+    }
+
+    private void processEntries(LDIFReader ldifReader, IonWriter ionWriter) throws IOException {
+        while (true) {
+            String[] record = null;
+            Entry entry = null;
+            LDIFChangeRecord changeRecord = null;
+            try {
+                LDIFRecord ldifRecord = ldifReader.readLDIFRecord();
+                if (ldifRecord == null) break;
+                record = ldifRecord.toLDIF();
+            } catch (LDIFException e) {
+                logger.warn("Canno't read LDIF entry {}, {}", e.getDataLines(), e.getMessage());
+                continue;
+            } catch (IOException e) {
+                logger.error(e.getMessage());
+                continue;
+            }
+            try {
+                changeRecord = LDIFReader.decodeChangeRecord(record);
+            } catch (LDIFException e_change) {
+                try {
+                    entry = LDIFReader.decodeEntry(record);
+                } catch (LDIFException e_entry) {
+                    logger.warn("Translation failed, not an Entry nor a ChangeRecord : {}, {}, {}", record.toString(), e_entry.getMessage(), e_change.getMessage());
+                }
+            }
+            if (entry == null && changeRecord == null) break;
+            this.found++;
+            if (entry != null) {
+                writeIonEntry(ionWriter, entry);
+            } else {
+                writeIonChangeRecord(ionWriter, changeRecord);
+            }
+            this.count++;
         }
     }
 
@@ -168,14 +198,12 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
         writeAttributes(ionWriter, entry.getAttributes());
 
         ionWriter.stepOut();
-        this.count++;
-        //TODO: manage changeType
     }
 
     /**
-     * Writes the attributes of an LDIF entry to the ION writer.
-     * @param ionWriter : The ION writer to write the attributes to.
-     * @param attributes : The collection of attributes to be written.
+     * Writes an LDIF entry attributes to the ION writer.
+     * @param ionWriter : The ION writer to write the entry to.
+     * @param attributes : The LDIF entry attributes to be written.
      */
     private void writeAttributes(IonWriter ionWriter, Collection<Attribute> attributes) throws IOException {
         ionWriter.stepIn(IonType.STRUCT);
@@ -185,6 +213,56 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
             for (String value : attribute.getValues()) {
                 ionWriter.writeString(value);
             }
+            ionWriter.stepOut();
+        }
+        ionWriter.stepOut();
+    }
+
+    /**
+     * Writes an LDIF changeRecord to the ION writer.
+     * @param ionWriter : The ION writer to write the entry to.
+     * @param changeRecord : The LDIF changeRecord to be written.
+     */
+    private void writeIonChangeRecord(IonWriter ionWriter, LDIFChangeRecord changeRecord) throws IOException {
+        ionWriter.stepIn(IonType.STRUCT);
+
+        ionWriter.setFieldName("dn");
+        ionWriter.writeString(changeRecord.getDN());
+
+        ionWriter.setFieldName("changeType");
+        ionWriter.writeString(changeRecord.getChangeType().toString());
+
+        if (changeRecord.getChangeType() == ChangeType.MODIFY) {
+            ionWriter.setFieldName("modifications");
+            writeModifications(ionWriter, ((LDIFModifyChangeRecord)changeRecord).getModifications());
+        }
+
+        ionWriter.stepOut();
+    }
+
+    /**
+     * Writes an LDIF changeRecord modifications to the ION writer.
+     * @param ionWriter : The ION writer to write the entry to.
+     * @param modifications : The LDIF changeRecord modifications to be written.
+     */
+    private void writeModifications(IonWriter ionWriter, Modification[] modifications) throws IOException {
+        ionWriter.stepIn(IonType.LIST);
+        for (Modification modification : modifications) {
+            ionWriter.stepIn(IonType.STRUCT);
+
+            ionWriter.setFieldName("operation");
+            ionWriter.writeString(modification.getModificationType().toString());
+
+            ionWriter.setFieldName("attribute");
+            ionWriter.writeString(modification.getAttributeName());
+
+            ionWriter.setFieldName("values");
+            ionWriter.stepIn(IonType.LIST);
+            for (String value : modification.getValues()) {
+                ionWriter.writeString(value);
+            }
+            ionWriter.stepOut();
+
             ionWriter.stepOut();
         }
         ionWriter.stepOut();

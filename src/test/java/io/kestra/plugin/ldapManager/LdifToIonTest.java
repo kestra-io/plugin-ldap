@@ -116,12 +116,30 @@ public class LdifToIonTest {
             dn: cn=yennefer@orga.com,ou=diffusion_list,dc=orga,dc=com
             description: Some description 2
             someOtherAttribute: Loves herself""");// scnd file
+        inputs.add("""
+            dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+            changetype: modify
+            delete: description
+            description: Some description 3
+            -
+            add: description
+            description: Some description 4
+            -
+            replace: someOtherAttribute
+            someOtherAttribute: Loves herself more
+
+            dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+            changetype: delete
+            """);// third file, includes changeType
         expectations.add("""
             {dn:"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description 1","Melusine lover"],someOtherAttribute:["perhaps","perhapsAgain"]}}
             {dn:"cn=tony@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description 2","Melusine lover as well"],someOtherAttribute:["perhaps 2","perhapsAgain 2"]}}""");// fst file
         expectations.add("""
             {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description 3"],someOtherAttribute:["Melusine lover, obviously"]}}
             {dn:"cn=yennefer@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description 2"],someOtherAttribute:["Loves herself"]}}""");// scnd file
+        expectations.add("""
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"modify",modifications:[{operation:"DELETE",attribute:"description",values:["Some description 3"]},{operation:"ADD",attribute:"description",values:["Some description 4"]},{operation:"REPLACE",attribute:"someOtherAttribute",values:["Loves herself more"]}]}
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"delete"}""");// third file
         /////////////////////////
 
         RunContext runContext = getRunContext(inputs);

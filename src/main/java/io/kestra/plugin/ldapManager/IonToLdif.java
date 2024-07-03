@@ -277,9 +277,9 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
                 return new LDIFAddChangeRecord(dn, attributes);
             } else if ("delete".equals(changeType)) {
                 return new LDIFDeleteChangeRecord(dn);
-            } else if ("modify".equals(changeType)) {
+            } else if ("modify".equals(changeType) && modifications != null) {
                 return new LDIFModifyChangeRecord(dn, modifications.toArray(new Modification[0]));
-            } else if ("moddn".equals(changeType)) {
+            } else if ("moddn".equals(changeType) && newDn != null) {
                 return new LDIFModifyDNChangeRecord(dn, newDn.newRDN, newDn.deleteOldRDN, newDn.newsuperior);
             } else if (changeType == null) {
                 return new Entry(dn, attributes);

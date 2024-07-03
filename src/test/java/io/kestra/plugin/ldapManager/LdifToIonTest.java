@@ -149,7 +149,6 @@ public class LdifToIonTest {
             newrdn: cn=triss@orga.com
             deleteoldrdn: 1
             """);// third file, includes changeType
-            //TODO: document that (moddn or modrdn -> moddn) and that order is : newrdn -> deleteoldrdn -> newsuperior (optional)
         expectations.add("""
             {dn:"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description 1","Melusine lover"],someOtherAttribute:["perhaps","perhapsAgain"]}}
             {dn:"cn=tony@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description 2","Melusine lover as well"],someOtherAttribute:["perhaps 2","perhapsAgain 2"]}}""");// fst file

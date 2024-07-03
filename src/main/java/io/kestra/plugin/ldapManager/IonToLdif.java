@@ -75,7 +75,21 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
 
     @Schema(
         title = "URI(s) of file(s) containing ION entries.",
-        description = "ION file(s) to transform to LDIF formated ones."
+        description = "ION file(s) to transform to LDIF formated ones.",
+        example = """
+                I.E. here's an ION file content :
+
+                // simple entry
+                {dn:"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description","Some other description"],someOtherAttribute:["perhaps","perhapsAgain"]}}
+                // modify changeRecord
+                {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"modify",modifications:[{operation:"DELETE",attribute:"description",values:["Some description 3"]},{operation:"ADD",attribute:"description",values:["Some description 4"]},{operation:"REPLACE",attribute:"someOtherAttribute",values:["Loves herself more"]}]}
+                // delete changeRecord
+                {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"delete"}
+                // moddn changeRecord (it is mandatory to specify a newrdn and a deleteoldrdn)
+                {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:false,newsuperior:"ou=expeople,dc=example,dc=com"}}
+                // moddn changeRecord without new superior (it is optional to specify a new superior field)
+                {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:true}}
+                """
     )
     @PluginProperty(dynamic = true)
     @NotNull
@@ -89,7 +103,47 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "LDIF transformed file(s) URI(s)."
+            title = "LDIF transformed file(s) URI(s).",
+            example = """
+                I.E. here's a LDIF file content :
+
+                # simple entry
+                dn: cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com
+                description: Some description
+                someOtherAttribute: perhaps
+                description: Some other description
+                someOtherAttribute: perhapsAgain
+
+                # modify changeRecord
+                dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+                changetype: modify
+                delete: description
+                description: Some description 3
+                -
+                add: description
+                description: Some description 4
+                -
+                replace: someOtherAttribute
+                someOtherAttribute: Loves herself more
+                -
+
+                # delete changeRecord
+                dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+                changetype: delete
+
+                # moddn with new superior
+                dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+                changetype: moddn
+                newrdn: cn=triss@orga.com
+                deleteoldrdn: 0
+                newsuperior: ou=expeople,dc=example,dc=com
+
+                # moddn without new superior
+                dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+                changetype: moddn
+                newrdn: cn=triss@orga.com
+                deleteoldrdn: 1
+                    """
         )
         private final List<URI> urisList;
     }
@@ -98,6 +152,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
      * CODE ------------------------------------------------------------------------------------------------------------------- //
     **/
 
+    /** Private util class to store DN modification informations. */
     @Builder
     @Getter
     static class NewDn {
@@ -235,6 +290,11 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
         return null;
     }
 
+    /**
+     * Read the informations of the new DN.
+     * @param ionReader : The ION reader to read the specific moddn attributes from.
+     * @return A NewDn util class containing the new DN read informations.
+     */
     private NewDn readNewDn(IonReader ionReader) {
         String newRDN = null;
         Boolean deleteOldRDN = null;
@@ -247,6 +307,11 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
         return new NewDn(newRDN, deleteOldRDN, newsuperior);
     }
 
+    /**
+     * Read each modifications informations.
+     * @param ionReader : The ION reader to read the specific modify operations from.
+     * @return A list of Modification to apply to the entry.
+     */
     private List<Modification> readModifications(IonReader ionReader) {
         List<Modification> modifications = new ArrayList<>();
         while (ionReader.next() != null) {

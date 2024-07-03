@@ -74,7 +74,47 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
 
     @Schema(
         title = "URI(s) of file(s) containing LDIF entries.",
-        description = "LDIF file(s) to transform to ION formated ones."
+        description = "LDIF file(s) to transform to ION formated ones.",
+        example = """
+            I.E. here's a LDIF file content :
+
+            # simple entry
+            dn: cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com
+            description: Some description
+            someOtherAttribute: perhaps
+            description: Some other description
+            someOtherAttribute: perhapsAgain
+
+            # modify changeRecord
+            dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+            changetype: modify
+            delete: description
+            description: Some description 3
+            -
+            add: description
+            description: Some description 4
+            -
+            replace: someOtherAttribute
+            someOtherAttribute: Loves herself more
+            -
+
+            # delete changeRecord
+            dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+            changetype: delete
+
+            # moddn and modrdn are equals, what's mandatory is to specify in the following order : newrdn -> deleteoldrdn -> (optional) newsuperior
+            dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+            changetype: modrdn
+            newrdn: cn=triss@orga.com
+            deleteoldrdn: 0
+            newsuperior: ou=expeople,dc=example,dc=com
+
+            # moddn without new superior
+            dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+            changetype: moddn
+            newrdn: cn=triss@orga.com
+            deleteoldrdn: 1
+                """
     )
     @PluginProperty(dynamic = true)
     @NotNull
@@ -88,7 +128,21 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "URI(s) of ION translated file(s)."
+            title = "URI(s) of ION translated file(s).",
+            example = """
+                I.E. here's an ION file content :
+
+                // simple entry
+                {dn:"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description","Some other description"],someOtherAttribute:["perhaps","perhapsAgain"]}}
+                // modify changeRecord
+                {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"modify",modifications:[{operation:"DELETE",attribute:"description",values:["Some description 3"]},{operation:"ADD",attribute:"description",values:["Some description 4"]},{operation:"REPLACE",attribute:"someOtherAttribute",values:["Loves herself more"]}]}
+                // delete changeRecord
+                {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"delete"}
+                // moddn changeRecord with new superior
+                {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:false,newsuperior:"ou=expeople,dc=example,dc=com"}}
+                // moddn changeRecord without new superior
+                {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:true}}
+                    """
         )
         private final List<URI> urisList;
     }
@@ -148,6 +202,11 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
         }
     }
 
+    /**
+     * Construct entries and changeRecords in an IonWriter by interpreting LDIFReader reads.
+     * @param ldifReader : The LDIF reader to get informations from.
+     * @param ionWriter : The ION writer to write the entry to.
+     */
     private void processEntries(LDIFReader ldifReader, IonWriter ionWriter) throws IOException {
         while (true) {
             String[] record = null;

@@ -237,7 +237,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
             ionWriter.setFieldName("modifications");
             writeModifications(ionWriter, ((LDIFModifyChangeRecord)changeRecord).getModifications());
         } else if (changeRecord.getChangeType() == ChangeType.MODIFY_DN) {
-            ionWriter.setFieldName("modifications");
+            ionWriter.setFieldName("newDn");
             writeModifications(ionWriter, (LDIFModifyDNChangeRecord)changeRecord);
         }
 
@@ -279,12 +279,12 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
      */
     private void writeModifications(IonWriter ionWriter, LDIFModifyDNChangeRecord modifications) throws IOException {
         ionWriter.stepIn(IonType.STRUCT);
-        ionWriter.setFieldName("newRDN");
+        ionWriter.setFieldName("newrdn");
         ionWriter.writeString(modifications.getNewRDN());
-        ionWriter.setFieldName("deleteOldRDN");
+        ionWriter.setFieldName("deleteoldrdn");
         ionWriter.writeBool(modifications.deleteOldRDN());
         if (modifications.getNewSuperiorDN() != null) {
-            ionWriter.setFieldName("newSuperiorDN");
+            ionWriter.setFieldName("newsuperior");
             ionWriter.writeString(modifications.getNewSuperiorDN());
         }
         ionWriter.stepOut();

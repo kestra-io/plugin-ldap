@@ -12,6 +12,7 @@ import com.unboundid.ldap.sdk.ModificationType;
 import com.unboundid.ldif.LDIFAddChangeRecord;
 import com.unboundid.ldif.LDIFDeleteChangeRecord;
 import com.unboundid.ldif.LDIFModifyChangeRecord;
+import com.unboundid.ldif.LDIFModifyDNChangeRecord;
 import com.unboundid.ldif.LDIFRecord;
 import com.unboundid.ldif.LDIFWriter;
 
@@ -21,6 +22,8 @@ import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
+
+import io.micronaut.core.annotation.Nullable;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -94,6 +97,17 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
     /**
      * CODE ------------------------------------------------------------------------------------------------------------------- //
     **/
+
+    @Builder
+    @Getter
+    static class NewDn {
+        @NotNull
+        String newRDN;
+        @NotNull
+        Boolean deleteOldRDN;
+        @Nullable
+        String newsuperior;
+    }
 
     private Integer count;
     /** The kestra logger (slf4j) for the task. */
@@ -175,9 +189,10 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
      */
     private LDIFRecord readIonEntry(IonReader ionReader) {
         String dn = null;
-        List<Attribute> attributes = new ArrayList<>();
+        List<Attribute> attributes = null;
         String changeType = null;
-        List<Modification> modifications = new ArrayList<>();
+        List<Modification> modifications = null;
+        NewDn newDn = null;
 
         while (ionReader.next() != null) {
             String fieldName = ionReader.getFieldName();
@@ -193,6 +208,10 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
                 ionReader.stepIn();
                 modifications = readModifications(ionReader);
                 ionReader.stepOut();
+            } else if ("newDn".equals(fieldName) && "moddn".equals(changeType)) {
+                ionReader.stepIn();
+                newDn = readNewDn(ionReader);
+                ionReader.stepOut();
             } else {
                 logger.warn("Unrecognized field : {}", fieldName);
             }
@@ -206,14 +225,26 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
             } else if ("modify".equals(changeType)) {
                 return new LDIFModifyChangeRecord(dn, modifications.toArray(new Modification[0]));
             } else if ("moddn".equals(changeType)) {
-                //TODO: handle this case
-            } else {
+                return new LDIFModifyDNChangeRecord(dn, newDn.newRDN, newDn.deleteOldRDN, newDn.newsuperior);
+            } else if (changeType == null) {
                 return new Entry(dn, attributes);
             }
         }
 
         logger.warn("Unable to make Ion entry from DN : {}, Attributes {}", dn, attributes);
         return null;
+    }
+
+    private NewDn readNewDn(IonReader ionReader) {
+        String newRDN = null;
+        Boolean deleteOldRDN = null;
+        String newsuperior = null;
+        while (ionReader.next() != null) {
+            if (ionReader.getFieldName().equals("newrdn")) newRDN = ionReader.stringValue();
+            else if (ionReader.getFieldName().equals("deleteoldrdn")) deleteOldRDN = ionReader.booleanValue();
+            else if (ionReader.getFieldName().equals("newsuperior")) newsuperior = ionReader.stringValue();
+        }
+        return new NewDn(newRDN, deleteOldRDN, newsuperior);
     }
 
     private List<Modification> readModifications(IonReader ionReader) {

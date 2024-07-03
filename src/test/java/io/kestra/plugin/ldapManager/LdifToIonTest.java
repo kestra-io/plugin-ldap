@@ -50,8 +50,8 @@ public class LdifToIonTest {
             URI filePath;
             try {
                 filePath = this.storageInterface.put(
-                    null, 
-                    URI.create("/" + IdUtils.create() + ".json"), 
+                    null,
+                    URI.create("/" + IdUtils.create() + ".json"),
                     new ByteArrayInputStream(content.getBytes())
                 );
                 kestraPaths.put("file" + idx, filePath.toString());
@@ -127,6 +127,7 @@ public class LdifToIonTest {
             -
             replace: someOtherAttribute
             someOtherAttribute: Loves herself more
+            -
 
             dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
             changetype: delete
@@ -134,21 +135,21 @@ public class LdifToIonTest {
             dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
             changetype: modrdn
             newrdn: cn=triss@orga.com
-            deleteOldRDN: 0
+            deleteoldrdn: 0
             newsuperior: ou=expeople,dc=example,dc=com
 
             dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
             changetype: moddn
             newrdn: cn=triss@orga.com
-            deleteOldRDN: 1
+            deleteoldrdn: 1
             newsuperior: ou=expeople,dc=example,dc=com
 
             dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
             changetype: moddn
             newrdn: cn=triss@orga.com
-            deleteOldRDN: 1
+            deleteoldrdn: 1
             """);// third file, includes changeType
-            //TODO: document that (moddn or modrdn -> moddn) and that order is : newrdn -> deleteOldRDN -> newsuperior (optional)
+            //TODO: document that (moddn or modrdn -> moddn) and that order is : newrdn -> deleteoldrdn -> newsuperior (optional)
         expectations.add("""
             {dn:"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description 1","Melusine lover"],someOtherAttribute:["perhaps","perhapsAgain"]}}
             {dn:"cn=tony@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description 2","Melusine lover as well"],someOtherAttribute:["perhaps 2","perhapsAgain 2"]}}""");// fst file
@@ -158,9 +159,9 @@ public class LdifToIonTest {
         expectations.add("""
             {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"modify",modifications:[{operation:"DELETE",attribute:"description",values:["Some description 3"]},{operation:"ADD",attribute:"description",values:["Some description 4"]},{operation:"REPLACE",attribute:"someOtherAttribute",values:["Loves herself more"]}]}
             {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"delete"}
-            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",modifications:{newRDN:"cn=triss@orga.com",deleteOldRDN:false,newSuperiorDN:"ou=expeople,dc=example,dc=com"}}  
-            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",modifications:{newRDN:"cn=triss@orga.com",deleteOldRDN:true,newSuperiorDN:"ou=expeople,dc=example,dc=com"}}   
-            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",modifications:{newRDN:"cn=triss@orga.com",deleteOldRDN:true}}""");// third file
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:false,newsuperior:"ou=expeople,dc=example,dc=com"}}
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:true,newsuperior:"ou=expeople,dc=example,dc=com"}}
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:true}}""");// third file
         /////////////////////////
 
         RunContext runContext = getRunContext(inputs);

@@ -2,8 +2,6 @@ package io.kestra.plugin.ldapManager;
 
 import com.amazon.ion.IonException;
 import com.amazon.ion.IonReader;
-import com.amazon.ion.IonSystem;
-import com.amazon.ion.system.IonSystemBuilder;
 
 import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.Entry;
@@ -32,7 +30,6 @@ import jakarta.validation.constraints.NotNull;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 
 import java.net.URI;
 
@@ -204,10 +201,8 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
      * @param runContext : The context of the run.
      * @return URI of the transformed LDIF file.
      */
-    private URI transformIonToLdif(String ionFilePath, RunContext runContext) throws IOException, IonException {
-        IonSystem ionSystem = IonSystemBuilder.standard().build();
-        try (InputStream ionInputStream = runContext.storage().getFile(URI.create(ionFilePath));
-             IonReader ionReader = ionSystem.newReader(ionInputStream);
+    private URI transformIonToLdif(String ionFilePath, RunContext runContext) throws IOException, IonException, Exception {
+        try (IonReader ionReader = Utils.getIONReaderFromUri(ionFilePath, runContext);
              ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
              LDIFWriter ldifWriter = new LDIFWriter(byteArrayOutputStream)) {
 

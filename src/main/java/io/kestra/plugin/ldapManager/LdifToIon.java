@@ -30,7 +30,6 @@ import jakarta.validation.constraints.NotNull;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 
 import java.net.URI;
 
@@ -175,7 +174,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
 
         for (String path : this.inputs) {
             try {
-                storedResults.add(transformLdifToIon(runContext.render(path), runContext));
+                storedResults.add(transformLdifToIon(path, runContext));
             } catch (IOException | LDIFException e) {
                  this.logger.error(e.getMessage());
             }
@@ -197,12 +196,11 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
      * @param runContext : The context of the run.
      * @return URI of the transformed ION file.
      */
-    private URI transformLdifToIon(String ldifFilePath, RunContext runContext) throws IOException, LDIFException {
+    private URI transformLdifToIon(String ldifFilePath, RunContext runContext) throws IOException, LDIFException, Exception {
         IonSystem ionSystem = IonSystemBuilder.standard().build();
         try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
              IonWriter ionWriter = ionSystem.newTextWriter(byteArrayOutputStream);
-             InputStream ldifInputStream = runContext.storage().getFile(URI.create(ldifFilePath));
-             LDIFReader ldifReader = new LDIFReader(ldifInputStream)) {
+             LDIFReader ldifReader = Utils.getLDIFReaderFromUri(ldifFilePath, runContext)) {
 
             processEntries(ldifReader, ionWriter);
             ionWriter.finish();

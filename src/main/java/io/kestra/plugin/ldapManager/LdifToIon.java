@@ -9,6 +9,7 @@ import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.ChangeType;
 import com.unboundid.ldap.sdk.Entry;
 import com.unboundid.ldap.sdk.Modification;
+import com.unboundid.ldif.LDIFAddChangeRecord;
 import com.unboundid.ldif.LDIFChangeRecord;
 import com.unboundid.ldif.LDIFException;
 import com.unboundid.ldif.LDIFModifyChangeRecord;
@@ -16,6 +17,7 @@ import com.unboundid.ldif.LDIFModifyDNChangeRecord;
 import com.unboundid.ldif.LDIFReader;
 import com.unboundid.ldif.LDIFRecord;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
@@ -30,7 +32,6 @@ import jakarta.validation.constraints.NotNull;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 
 import java.net.URI;
 
@@ -67,20 +68,10 @@ import org.slf4j.Logger;
             "inputs:",
             " - {{some_uri}}",
             " - {{some_other_uri}}"}
-            )
-    }
-)
-public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
-    /**
-     * INPUTS ------------------------------------------------------------------------------------------------------------------- //
-    **/
-
-    @Schema(
-        title = "URI(s) of file(s) containing LDIF entries.",
-        description = """
-            LDIF file(s) to transform to ION formated ones.
-            I.E. here's a LDIF file content :
-
+        ),
+        @io.kestra.core.models.annotations.Example(
+            title = "INPUT example : here's an LDIF file content that may be inputted :",
+            code = {"""
             # simple entry
             dn: cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com
             description: Some description
@@ -117,7 +108,32 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
             changetype: moddn
             newrdn: cn=triss@orga.com
             deleteoldrdn: 1
-                """
+            """}
+        ),
+        @io.kestra.core.models.annotations.Example(
+            title = "OUTPUT example : here's an ION file content that may be outputted :",
+            code = {"""
+            # simple entry
+            {dn:"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description","Some other description"],someOtherAttribute:["perhaps","perhapsAgain"]}}
+            # modify changeRecord
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"modify",modifications:[{operation:"DELETE",attribute:"description",values:["Some description 3"]},{operation:"ADD",attribute:"description",values:["Some description 4"]},{operation:"REPLACE",attribute:"someOtherAttribute",values:["Loves herself more"]}]}
+            # delete changeRecord
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"delete"}
+            # moddn changeRecord (it is mandatory to specify a newrdn and a deleteoldrdn)
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:false,newsuperior:"ou=expeople,dc=example,dc=com"}}
+            # moddn changeRecord without new superior (it is optional to specify a new superior field)
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:true}}
+            """}
+        )
+    }
+)
+public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
+    /**
+     * INPUTS ------------------------------------------------------------------------------------------------------------------- //
+    **/
+
+    @Schema(
+        title = "URI(s) of file(s) containing LDIF entries."
     )
     @PluginProperty(dynamic = true)
     @NotNull
@@ -131,21 +147,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "URI(s) of ION translated file(s).",
-            description = """
-                I.E. here's an ION file content :
-
-                // simple entry
-                {dn:"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description","Some other description"],someOtherAttribute:["perhaps","perhapsAgain"]}}
-                // modify changeRecord
-                {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"modify",modifications:[{operation:"DELETE",attribute:"description",values:["Some description 3"]},{operation:"ADD",attribute:"description",values:["Some description 4"]},{operation:"REPLACE",attribute:"someOtherAttribute",values:["Loves herself more"]}]}
-                // delete changeRecord
-                {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"delete"}
-                // moddn changeRecord with new superior
-                {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:false,newsuperior:"ou=expeople,dc=example,dc=com"}}
-                // moddn changeRecord without new superior
-                {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:true}}
-                    """
+            title = "URI(s) of ION translated file(s)."
         )
         private final List<URI> urisList;
     }
@@ -175,8 +177,8 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
 
         for (String path : this.inputs) {
             try {
-                storedResults.add(transformLdifToIon(runContext.render(path), runContext));
-            } catch (IOException | LDIFException e) {
+                storedResults.add(transformLdifToIon(path, runContext));
+            } catch (Exception e) {
                  this.logger.error(e.getMessage());
             }
         }
@@ -197,12 +199,11 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
      * @param runContext : The context of the run.
      * @return URI of the transformed ION file.
      */
-    private URI transformLdifToIon(String ldifFilePath, RunContext runContext) throws IOException, LDIFException {
+    private URI transformLdifToIon(String ldifFilePath, RunContext runContext) throws IOException, IllegalVariableEvaluationException, NullPointerException, IllegalArgumentException, IllegalStateException {
         IonSystem ionSystem = IonSystemBuilder.standard().build();
         try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
              IonWriter ionWriter = ionSystem.newTextWriter(byteArrayOutputStream);
-             InputStream ldifInputStream = runContext.storage().getFile(URI.create(ldifFilePath));
-             LDIFReader ldifReader = new LDIFReader(ldifInputStream)) {
+             LDIFReader ldifReader = Utils.getLDIFReaderFromUri(ldifFilePath, runContext)) {
 
             processEntries(ldifReader, ionWriter);
             ionWriter.finish();
@@ -217,7 +218,8 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
      * @param ldifReader : The LDIF reader to get informations from.
      * @param ionWriter : The ION writer to write the entry to.
      */
-    private void processEntries(LDIFReader ldifReader, IonWriter ionWriter) throws IOException {
+    @SuppressWarnings("null")
+    private void processEntries(LDIFReader ldifReader, IonWriter ionWriter) throws IOException, IllegalArgumentException {
         while (true) {
             String[] record = null;
             Entry entry = null;
@@ -244,12 +246,16 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
             }
             if (entry == null && changeRecord == null) break;
             this.entriesFound++;
-            if (entry != null) {
-                writeIonEntry(ionWriter, entry);
-            } else {
-                writeIonChangeRecord(ionWriter, changeRecord);
+            try {
+                if (entry != null) {
+                    writeIonEntry(ionWriter, entry);
+                } else {
+                    writeIonChangeRecord(ionWriter, changeRecord);
+                }
+                this.translateCount++;
+            } catch (IOException | IllegalArgumentException e) {
+                this.logger.warn("Canno't write ION entry {}, {}", entry == null ? changeRecord.toLDIFString() : entry.toLDIFString(), e.getMessage());
             }
-            this.translateCount++;
         }
     }
 
@@ -258,7 +264,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
      * @param ionWriter : The ION writer to write the entry to.
      * @param entry : The LDIF entry to be written.
      */
-    private void writeIonEntry(IonWriter ionWriter, Entry entry) throws IOException {
+    private void writeIonEntry(IonWriter ionWriter, Entry entry) throws IOException, IllegalArgumentException {
         ionWriter.stepIn(IonType.STRUCT);
 
         ionWriter.setFieldName("dn");
@@ -275,7 +281,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
      * @param ionWriter : The ION writer to write the entry to.
      * @param attributes : The LDIF entry attributes to be written.
      */
-    private void writeAttributes(IonWriter ionWriter, Collection<Attribute> attributes) throws IOException {
+    private void writeAttributes(IonWriter ionWriter, Collection<Attribute> attributes) throws IOException, IllegalArgumentException {
         ionWriter.stepIn(IonType.STRUCT);
         for (Attribute attribute : attributes) {
             ionWriter.setFieldName(attribute.getName());
@@ -293,7 +299,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
      * @param ionWriter : The ION writer to write the entry to.
      * @param changeRecord : The LDIF changeRecord to be written.
      */
-    private void writeIonChangeRecord(IonWriter ionWriter, LDIFChangeRecord changeRecord) throws IOException {
+    private void writeIonChangeRecord(IonWriter ionWriter, LDIFChangeRecord changeRecord) throws IOException, IllegalArgumentException {
         ionWriter.stepIn(IonType.STRUCT);
 
         ionWriter.setFieldName("dn");
@@ -308,6 +314,9 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
         } else if (changeRecord.getChangeType() == ChangeType.MODIFY_DN) {
             ionWriter.setFieldName("newDn");
             writeModifications(ionWriter, (LDIFModifyDNChangeRecord)changeRecord);
+        } else if (changeRecord.getChangeType() == ChangeType.ADD) {
+            ionWriter.setFieldName("attributes");
+            writeAttributes(ionWriter, ((LDIFAddChangeRecord)changeRecord).getEntryToAdd().getAttributes());
         }
 
         ionWriter.stepOut();
@@ -318,7 +327,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
      * @param ionWriter : The ION writer to write the entry to.
      * @param modifications : The LDIF changeRecord modifications to be written.
      */
-    private void writeModifications(IonWriter ionWriter, Modification[] modifications) throws IOException {
+    private void writeModifications(IonWriter ionWriter, Modification[] modifications) throws IOException, IllegalArgumentException {
         ionWriter.stepIn(IonType.LIST);
         for (Modification modification : modifications) {
             ionWriter.stepIn(IonType.STRUCT);
@@ -346,7 +355,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
      * @param ionWriter : The ION writer to write the entry to.
      * @param modifications : The LDIF changeDNRecord class from wich to retrieve infos to be written.
      */
-    private void writeModifications(IonWriter ionWriter, LDIFModifyDNChangeRecord modifications) throws IOException {
+    private void writeModifications(IonWriter ionWriter, LDIFModifyDNChangeRecord modifications) throws IOException, IllegalArgumentException {
         ionWriter.stepIn(IonType.STRUCT);
         ionWriter.setFieldName("newrdn");
         ionWriter.writeString(modifications.getNewRDN());

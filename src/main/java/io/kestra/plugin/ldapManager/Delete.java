@@ -23,8 +23,6 @@ import jakarta.validation.constraints.NotNull;
 
 import java.io.IOException;
 
-import java.net.URI;
-
 import java.time.Duration;
 
 import java.util.ArrayList;
@@ -106,14 +104,14 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
 
         try (LDAPConnection connection = this.getLdapConnection()) {
             for (String file : inputs) {
-                URI resolvedUri = resolveKestraUri(file, runContext);
-                if (resolvedUri == null) continue;
-                try (LDIFReader reader = new LDIFReader(runContext.storage().getFile(resolvedUri))) {
+                try (LDIFReader reader = Utils.getLDIFReaderFromUri(file, runContext)) {
                     processEntries(reader, connection);
+                } catch (Exception e) {
+                    this.logger.warn("Unable to process file {} completly : {}", file, e.getMessage());
                 }
             }
-        } catch (LDAPException e) {
-            this.logger.error("LDAP error: {}", e.getMessage());
+        } catch (LDAPException e_l) {
+            this.logger.error("LDAP error: {}", e_l.getMessage());
         }
 
         runContext.metric(Counter.of("deletions.requested", this.deletionRequests, "origin", "delete"));
@@ -130,7 +128,7 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
      * @param reader : The LDIFReader containing the entries to be processed.
      * @param connection : The LDAPConnection to the LDAP server.
      */
-    private void processEntries(LDIFReader reader, LDAPConnection connection) throws LDAPException, IOException, LDIFException {
+    private void processEntries(LDIFReader reader, LDAPConnection connection) throws IOException {
         while (true) {
             Entry entry = null;
             try {
@@ -155,21 +153,6 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
             } catch (LDAPException e) {
                 this.logger.error("Error deleting DN '{}': {}", baseDn, e.getMessage());
             }
-        }
-    }
-
-    /**
-     * Resolves a Kestra pebble or literral URI to a valid Kestra URI.
-     * @param file The URI or pebble to be resolved.
-     * @param runContext The context of the run.
-     * @return The resolved URI, or null if an error occurs.
-     */
-    private URI resolveKestraUri(String file, RunContext runContext) {
-        try {
-            return URI.create(runContext.render(file));
-        } catch (Exception e) {
-            this.logger.error("Invalid URI syntax: {}", e.getMessage());
-            return null;
         }
     }
 }

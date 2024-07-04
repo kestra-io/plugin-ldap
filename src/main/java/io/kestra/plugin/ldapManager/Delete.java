@@ -30,9 +30,12 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
+import lombok.AccessLevel;
+import lombok.Builder.Default;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
@@ -79,18 +82,27 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
      * CODE ------------------------------------------------------------------------------------------------------------------- //
     **/
 
-    private Integer deletionsDone;
-    private Integer deletionRequests;
-    private List<Long> deletionsTimes;
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    @Default
+    private Integer deletionsDone = 0;
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    @Default
+    private Integer deletionRequests = 0;
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    @Default
+    private List<Long> deletionsTimes = new ArrayList<>();
     /** The kestra logger (slf4j) for the task. */
-    private static Logger logger = null;
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    @Default
+    private Logger logger = null;
 
     @Override
     public VoidOutput run(RunContext runContext) throws Exception {
-        logger = runContext.logger();
-        this.deletionRequests = 0;
-        this.deletionsDone = 0;
-        this.deletionsTimes = new ArrayList<>();
+        this.logger = runContext.logger();
 
         try (LDAPConnection connection = this.getLdapConnection()) {
             for (String file : inputs) {
@@ -101,7 +113,7 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
                 }
             }
         } catch (LDAPException e) {
-            logger.error("LDAP error: {}", e.getMessage());
+            this.logger.error("LDAP error: {}", e.getMessage());
         }
 
         runContext.metric(Counter.of("deletions.requested", this.deletionRequests, "origin", "delete"));
@@ -124,7 +136,7 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
             try {
                 entry = reader.readEntry();
             } catch (LDIFException e) {
-                logger.error("Cannot read entry: {}", e.getDataLines());
+                this.logger.error("Cannot read entry: {}", e.getDataLines());
                 continue;
             }
             if (entry == null) break;
@@ -138,10 +150,10 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
                     this.deletionsTimes.add(System.currentTimeMillis() - startMillis);
                     this.deletionsDone++;
                 } else {
-                    logger.warn("Cannot remove entry '{}', LDAP response : {}", baseDn, result.getResultString());
+                    this.logger.warn("Cannot remove entry '{}', LDAP response : {}", baseDn, result.getResultString());
                 }
             } catch (LDAPException e) {
-                logger.error("Error deleting DN '{}': {}", baseDn, e.getMessage());
+                this.logger.error("Error deleting DN '{}': {}", baseDn, e.getMessage());
             }
         }
     }
@@ -156,7 +168,7 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
         try {
             return URI.create(runContext.render(file));
         } catch (Exception e) {
-            logger.error("Invalid URI syntax: {}", e.getMessage());
+            this.logger.error("Invalid URI syntax: {}", e.getMessage());
             return null;
         }
     }

@@ -9,6 +9,7 @@ import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.ChangeType;
 import com.unboundid.ldap.sdk.Entry;
 import com.unboundid.ldap.sdk.Modification;
+import com.unboundid.ldif.LDIFAddChangeRecord;
 import com.unboundid.ldif.LDIFChangeRecord;
 import com.unboundid.ldif.LDIFException;
 import com.unboundid.ldif.LDIFModifyChangeRecord;
@@ -312,6 +313,9 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
         } else if (changeRecord.getChangeType() == ChangeType.MODIFY_DN) {
             ionWriter.setFieldName("newDn");
             writeModifications(ionWriter, (LDIFModifyDNChangeRecord)changeRecord);
+        } else if (changeRecord.getChangeType() == ChangeType.ADD) {
+            ionWriter.setFieldName("attributes");
+            writeAttributes(ionWriter, ((LDIFAddChangeRecord)changeRecord).getEntryToAdd().getAttributes());
         }
 
         ionWriter.stepOut();

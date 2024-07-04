@@ -61,12 +61,70 @@ import org.slf4j.Logger;
 @Plugin(
     examples = {
         @io.kestra.core.models.annotations.Example(
-            title = "Make LDIF entries from ION ones.",
+            title = "YAML : Make LDIF entries from ION ones.",
             code = { "description: What your task is supposed to do and why.",
             "inputs:",
             " - {{some_uri}}",
             " - {{some_other_uri}}"}
-            )
+        ),
+        @io.kestra.core.models.annotations.Example(
+            title = "INPUT example : here's an ION file content that may be inputted :",
+            code = {"""
+            # simple entry
+            {dn:"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description","Some other description"],someOtherAttribute:["perhaps","perhapsAgain"]}}
+            # modify changeRecord
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"modify",modifications:[{operation:"DELETE",attribute:"description",values:["Some description 3"]},{operation:"ADD",attribute:"description",values:["Some description 4"]},{operation:"REPLACE",attribute:"someOtherAttribute",values:["Loves herself more"]}]}
+            # delete changeRecord
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"delete"}
+            # moddn changeRecord (it is mandatory to specify a newrdn and a deleteoldrdn)
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:false,newsuperior:"ou=expeople,dc=example,dc=com"}}
+            # moddn changeRecord without new superior (it is optional to specify a new superior field)
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:true}}
+            """},
+            full = true
+        ),
+        @io.kestra.core.models.annotations.Example(
+            title = "OUTPUT example : here's an LDIF file content that may be outputted :",
+            code = {"""
+            # simple entry
+            dn: cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com
+            description: Some description
+            someOtherAttribute: perhaps
+            description: Some other description
+            someOtherAttribute: perhapsAgain
+
+            # modify changeRecord
+            dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+            changetype: modify
+            delete: description
+            description: Some description 3
+            -
+            add: description
+            description: Some description 4
+            -
+            replace: someOtherAttribute
+            someOtherAttribute: Loves herself more
+            -
+
+            # delete changeRecord
+            dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+            changetype: delete
+
+            # moddn with new superior
+            dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+            changetype: moddn
+            newrdn: cn=triss@orga.com
+            deleteoldrdn: 0
+            newsuperior: ou=expeople,dc=example,dc=com
+
+            # moddn without new superior
+            dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+            changetype: moddn
+            newrdn: cn=triss@orga.com
+            deleteoldrdn: 1
+            """},
+            full = true
+        )
     }
 )
 public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
@@ -75,22 +133,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
     **/
 
     @Schema(
-        title = "URI(s) of file(s) containing ION entries.",
-        description = """
-                ION file(s) to transform to LDIF formated ones.
-                I.E. here's an ION file content :
-
-                // simple entry
-                {dn:"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description","Some other description"],someOtherAttribute:["perhaps","perhapsAgain"]}}
-                // modify changeRecord
-                {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"modify",modifications:[{operation:"DELETE",attribute:"description",values:["Some description 3"]},{operation:"ADD",attribute:"description",values:["Some description 4"]},{operation:"REPLACE",attribute:"someOtherAttribute",values:["Loves herself more"]}]}
-                // delete changeRecord
-                {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"delete"}
-                // moddn changeRecord (it is mandatory to specify a newrdn and a deleteoldrdn)
-                {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:false,newsuperior:"ou=expeople,dc=example,dc=com"}}
-                // moddn changeRecord without new superior (it is optional to specify a new superior field)
-                {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:true}}
-                """
+        title = "URI(s) of file(s) containing ION entries."
     )
     @PluginProperty(dynamic = true)
     @NotNull
@@ -104,47 +147,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "LDIF transformed file(s) URI(s).",
-            description = """
-                I.E. here's a LDIF file content :
-
-                # simple entry
-                dn: cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com
-                description: Some description
-                someOtherAttribute: perhaps
-                description: Some other description
-                someOtherAttribute: perhapsAgain
-
-                # modify changeRecord
-                dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
-                changetype: modify
-                delete: description
-                description: Some description 3
-                -
-                add: description
-                description: Some description 4
-                -
-                replace: someOtherAttribute
-                someOtherAttribute: Loves herself more
-                -
-
-                # delete changeRecord
-                dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
-                changetype: delete
-
-                # moddn with new superior
-                dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
-                changetype: moddn
-                newrdn: cn=triss@orga.com
-                deleteoldrdn: 0
-                newsuperior: ou=expeople,dc=example,dc=com
-
-                # moddn without new superior
-                dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
-                changetype: moddn
-                newrdn: cn=triss@orga.com
-                deleteoldrdn: 1
-                    """
+            title = "LDIF transformed file(s) URI(s)."
         )
         private final List<URI> urisList;
     }

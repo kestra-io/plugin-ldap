@@ -47,7 +47,7 @@ import org.slf4j.Logger;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Ionises LDIF entries.",
+    title = "Ionise LDIF entries.",
     description = "Transform .ldif files to .ion ones."
 )
 @Plugin(
@@ -92,12 +92,16 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
     **/
 
     private Integer count;
+    private Integer found;
+    /** The kestra logger (slf4j) for the task. */
+    private static Logger logger = null;
 
     @Override
     public LdifToIon.Output run(RunContext runContext) throws Exception {
-        Logger logger = runContext.logger();
+        logger = runContext.logger();
         List<URI> storedResults = new ArrayList<>();
         this.count = 0;
+        this.found = 0;
 
         for (String path : this.inputs) {
             try {
@@ -109,7 +113,8 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
         if (!this.inputs.isEmpty() && storedResults.isEmpty()) {
             throw new Exception("Not a single file has been translated.");
         }
-        runContext.metric(Counter.of("entries.translated", this.count, "origin", "Ionise"));
+        runContext.metric(Counter.of("entries.found", this.found, "origin", "LdifToIon"));
+        runContext.metric(Counter.of("entries.translated", this.count, "origin", "LdifToIon"));
 
         return Output.builder()
             .urisList(storedResults)
@@ -129,10 +134,17 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
              InputStream ldifInputStream = runContext.storage().getFile(URI.create(ldifFilePath));
              LDIFReader ldifReader = new LDIFReader(ldifInputStream)) {
 
-            Entry entry;
-            while ((entry = ldifReader.readEntry()) != null) {
+            while (true) {
+                Entry entry = null;
+                try {
+                    entry = ldifReader.readEntry();
+                } catch (LDIFException e) {
+                    logger.error("Cannot read entry: {}", e.getDataLines());
+                    continue;
+                }
+                if (entry == null) break;
+                this.found++;
                 writeIonEntry(ionWriter, entry);
-                this.count++;
             }
             ionWriter.finish();
             String resultContent = byteArrayOutputStream.toString().replace("} {", "}\n{");
@@ -156,6 +168,8 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
         writeAttributes(ionWriter, entry.getAttributes());
 
         ionWriter.stepOut();
+        this.count++;
+        //TODO: manage changeType
     }
 
     /**

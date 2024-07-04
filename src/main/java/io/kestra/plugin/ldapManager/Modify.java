@@ -123,9 +123,8 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
      * @param connection : The LDAPConnection to the LDAP server.
      */
     private void processEntries(LDIFReader reader, LDAPConnection connection) throws LDAPException, IOException, LDIFException {
-        LDIFChangeRecord entry = null;
-
         while (true) {
+            LDIFChangeRecord entry = null;
             try {
                 entry = reader.readChangeRecord();
             } catch (LDIFException e) {

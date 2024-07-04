@@ -119,8 +119,15 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
      * @param connection : The LDAPConnection to the LDAP server.
      */
     private void processEntries(LDIFReader reader, LDAPConnection connection) throws LDAPException, IOException, LDIFException {
-        Entry entry;
-        while ((entry = reader.readEntry()) != null) {
+        while (true) {
+            Entry entry = null;
+            try {
+                entry = reader.readEntry();
+            } catch (LDIFException e) {
+                logger.error("Cannot read entry: {}", e.getDataLines());
+                continue;
+            }
+            if (entry == null) break;
             this.deletionRequests++;
             String baseDn = entry.getDN();
             DeleteRequest deleteRequest = new DeleteRequest(baseDn);

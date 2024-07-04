@@ -90,10 +90,12 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
     **/
 
     private Integer count;
+    /** The kestra logger (slf4j) for the task. */
+    private static Logger logger = null;
 
     @Override
     public IonToLdif.Output run(RunContext runContext) throws Exception {
-        Logger logger = runContext.logger();
+        logger = runContext.logger();
         List<URI> storedResults = new ArrayList<>();
         this.count = 0;
 
@@ -142,10 +144,19 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
     private void processIonEntries(IonReader ionReader, LDIFWriter ldifWriter) throws IOException {
         while (ionReader.next() != null) {
             ionReader.stepIn();
-            Entry entry = readIonEntry(ionReader);
+            Entry entry = null;
+            try {
+                entry = readIonEntry(ionReader);
+            } catch (Exception e) {
+                logger.error("Unable to read entry {}", e.getMessage());
+            }
             if (entry != null) {
-                ldifWriter.writeEntry(entry);
-                this.count++;
+                try {
+                    ldifWriter.writeEntry(entry);
+                    this.count++;
+                } catch (Exception e) {
+                    logger.error("Unable to write entry {} : {}", entry.toString(), e.getMessage());
+                }
             }
             ionReader.stepOut();
         }
@@ -168,12 +179,16 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
                 ionReader.stepIn();
                 attributes = readAttributes(ionReader);
                 ionReader.stepOut();
+            } else {
+                logger.warn("Unrecognized field : {}", fieldName);
             }
+            //TODO: manage changeType
         }
 
         if (dn != null) {
             return new Entry(dn, attributes);
         }
+        logger.warn("Unable to make Ion entry from DN : {}, Attributes {}", dn, attributes);
         return null;
     }
 

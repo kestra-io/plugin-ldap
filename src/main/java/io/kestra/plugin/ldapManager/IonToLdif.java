@@ -2,7 +2,7 @@ package io.kestra.plugin.ldapManager;
 
 import com.amazon.ion.IonException;
 import com.amazon.ion.IonReader;
-
+import com.amazon.ion.UnknownSymbolException;
 import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.Entry;
 import com.unboundid.ldap.sdk.Modification;
@@ -14,6 +14,7 @@ import com.unboundid.ldif.LDIFModifyDNChangeRecord;
 import com.unboundid.ldif.LDIFRecord;
 import com.unboundid.ldif.LDIFWriter;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
@@ -168,6 +169,10 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
     @Setter(AccessLevel.NONE)
     @Default
     private Integer count = 0;
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    @Default
+    private Integer found = 0;
     /** The kestra logger (slf4j) for the task. */
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
@@ -181,14 +186,15 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
 
         for (String path : this.inputs) {
             try {
-                storedResults.add(transformIonToLdif(runContext.render(path), runContext));
-            } catch (IOException e) {
+                storedResults.add(transformIonToLdif(path, runContext));
+            } catch (Exception e) {
                 this.logger.error(e.getMessage());
             }
         }
         if (!this.inputs.isEmpty() && storedResults.isEmpty()) {
             throw new Exception("Not a single file has been translated.");
         }
+        runContext.metric(Counter.of("entries.found", this.found, "origin", "Ionise"));
         runContext.metric(Counter.of("entries.translated", this.count, "origin", "Ionise"));
         return Output.builder()
             .urisList(storedResults)
@@ -201,7 +207,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
      * @param runContext : The context of the run.
      * @return URI of the transformed LDIF file.
      */
-    private URI transformIonToLdif(String ionFilePath, RunContext runContext) throws IOException, IonException, Exception {
+    private URI transformIonToLdif(String ionFilePath, RunContext runContext) throws IllegalStateException, IonException, IllegalArgumentException, IOException, IllegalVariableEvaluationException, NullPointerException, IllegalArgumentException {
         try (IonReader ionReader = Utils.getIONReaderFromUri(ionFilePath, runContext);
              ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
              LDIFWriter ldifWriter = new LDIFWriter(byteArrayOutputStream)) {
@@ -219,10 +225,11 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
      * @param ionReader : The ION reader containing the entries to be processed.
      * @param ldifWriter : The LDIF writer to write the entries to.
      */
-    private void processIonEntries(IonReader ionReader, LDIFWriter ldifWriter) throws IOException {
+    private void processIonEntries(IonReader ionReader, LDIFWriter ldifWriter) throws IOException, IllegalStateException  {
         while (ionReader.next() != null) {
             ionReader.stepIn();
             LDIFRecord entry = null;
+            this.found++;
             try {
                 entry = readIonEntry(ionReader);
             } catch (Exception e) {
@@ -245,7 +252,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
      * @param ionReader : The ION reader to read the entry from.
      * @return The LDIF entry read from the ION reader.
      */
-    private LDIFRecord readIonEntry(IonReader ionReader) {
+    private LDIFRecord readIonEntry(IonReader ionReader) throws UnknownSymbolException, IllegalStateException {
         String dn = null;
         List<Attribute> attributes = null;
         String changeType = null;
@@ -276,7 +283,9 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
         }
 
         if (dn != null) {
-            if ("add".equals(changeType)) {
+            if (changeType == null) {
+                return new Entry(dn, attributes);
+            } else if ("add".equals(changeType)) {
                 return new LDIFAddChangeRecord(dn, attributes);
             } else if ("delete".equals(changeType)) {
                 return new LDIFDeleteChangeRecord(dn);
@@ -284,12 +293,11 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
                 return new LDIFModifyChangeRecord(dn, modifications.toArray(new Modification[0]));
             } else if ("moddn".equals(changeType) && newDn != null) {
                 return new LDIFModifyDNChangeRecord(dn, newDn.newRDN, newDn.deleteOldRDN, newDn.newsuperior);
-            } else if (changeType == null) {
-                return new Entry(dn, attributes);
             }
+            this.logger.warn("Unable to make Ion entry from DN : {}, Attributes {}", dn, attributes);
+        } else {
+            this.logger.warn("Entry nb {} does not contain a DN", this.found);
         }
-
-        this.logger.warn("Unable to make Ion entry from DN : {}, Attributes {}", dn, attributes);
         return null;
     }
 
@@ -298,7 +306,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
      * @param ionReader : The ION reader to read the specific moddn attributes from.
      * @return A NewDn util class containing the new DN read informations.
      */
-    private NewDn readNewDn(IonReader ionReader) {
+    private NewDn readNewDn(IonReader ionReader) throws UnknownSymbolException {
         String newRDN = null;
         Boolean deleteOldRDN = null;
         String newsuperior = null;
@@ -315,7 +323,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
      * @param ionReader : The ION reader to read the specific modify operations from.
      * @return A list of Modification to apply to the entry.
      */
-    private List<Modification> readModifications(IonReader ionReader) {
+    private List<Modification> readModifications(IonReader ionReader) throws IllegalStateException, UnknownSymbolException {
         List<Modification> modifications = new ArrayList<>();
         while (ionReader.next() != null) {
             ionReader.stepIn();
@@ -368,7 +376,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
      * @param ionReader : The ION reader to read the attributes from.
      * @return A list of attributes read from the ION reader.
      */
-    private List<Attribute> readAttributes(IonReader ionReader) {
+    private List<Attribute> readAttributes(IonReader ionReader) throws IllegalStateException, UnknownSymbolException {
         List<Attribute> attributes = new ArrayList<>();
 
         while (ionReader.next() != null) {

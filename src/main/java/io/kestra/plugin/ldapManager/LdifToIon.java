@@ -16,6 +16,7 @@ import com.unboundid.ldif.LDIFModifyDNChangeRecord;
 import com.unboundid.ldif.LDIFReader;
 import com.unboundid.ldif.LDIFRecord;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
@@ -175,7 +176,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
         for (String path : this.inputs) {
             try {
                 storedResults.add(transformLdifToIon(path, runContext));
-            } catch (IOException | LDIFException e) {
+            } catch (Exception e) {
                  this.logger.error(e.getMessage());
             }
         }
@@ -196,7 +197,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
      * @param runContext : The context of the run.
      * @return URI of the transformed ION file.
      */
-    private URI transformLdifToIon(String ldifFilePath, RunContext runContext) throws IOException, LDIFException, Exception {
+    private URI transformLdifToIon(String ldifFilePath, RunContext runContext) throws IOException, IllegalVariableEvaluationException, NullPointerException, IllegalArgumentException, IllegalStateException {
         IonSystem ionSystem = IonSystemBuilder.standard().build();
         try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
              IonWriter ionWriter = ionSystem.newTextWriter(byteArrayOutputStream);
@@ -215,7 +216,8 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
      * @param ldifReader : The LDIF reader to get informations from.
      * @param ionWriter : The ION writer to write the entry to.
      */
-    private void processEntries(LDIFReader ldifReader, IonWriter ionWriter) throws IOException {
+    @SuppressWarnings("null")
+    private void processEntries(LDIFReader ldifReader, IonWriter ionWriter) throws IOException, IllegalArgumentException {
         while (true) {
             String[] record = null;
             Entry entry = null;
@@ -242,12 +244,16 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
             }
             if (entry == null && changeRecord == null) break;
             this.entriesFound++;
-            if (entry != null) {
-                writeIonEntry(ionWriter, entry);
-            } else {
-                writeIonChangeRecord(ionWriter, changeRecord);
+            try {
+                if (entry != null) {
+                    writeIonEntry(ionWriter, entry);
+                } else {
+                    writeIonChangeRecord(ionWriter, changeRecord);
+                }
+                this.translateCount++;
+            } catch (IOException | IllegalArgumentException e) {
+                this.logger.warn("Canno't write ION entry {}, {}", entry == null ? changeRecord.toLDIFString() : entry.toLDIFString(), e.getMessage());
             }
-            this.translateCount++;
         }
     }
 
@@ -256,7 +262,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
      * @param ionWriter : The ION writer to write the entry to.
      * @param entry : The LDIF entry to be written.
      */
-    private void writeIonEntry(IonWriter ionWriter, Entry entry) throws IOException {
+    private void writeIonEntry(IonWriter ionWriter, Entry entry) throws IOException, IllegalArgumentException {
         ionWriter.stepIn(IonType.STRUCT);
 
         ionWriter.setFieldName("dn");
@@ -273,7 +279,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
      * @param ionWriter : The ION writer to write the entry to.
      * @param attributes : The LDIF entry attributes to be written.
      */
-    private void writeAttributes(IonWriter ionWriter, Collection<Attribute> attributes) throws IOException {
+    private void writeAttributes(IonWriter ionWriter, Collection<Attribute> attributes) throws IOException, IllegalArgumentException {
         ionWriter.stepIn(IonType.STRUCT);
         for (Attribute attribute : attributes) {
             ionWriter.setFieldName(attribute.getName());
@@ -291,7 +297,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
      * @param ionWriter : The ION writer to write the entry to.
      * @param changeRecord : The LDIF changeRecord to be written.
      */
-    private void writeIonChangeRecord(IonWriter ionWriter, LDIFChangeRecord changeRecord) throws IOException {
+    private void writeIonChangeRecord(IonWriter ionWriter, LDIFChangeRecord changeRecord) throws IOException, IllegalArgumentException {
         ionWriter.stepIn(IonType.STRUCT);
 
         ionWriter.setFieldName("dn");
@@ -316,7 +322,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
      * @param ionWriter : The ION writer to write the entry to.
      * @param modifications : The LDIF changeRecord modifications to be written.
      */
-    private void writeModifications(IonWriter ionWriter, Modification[] modifications) throws IOException {
+    private void writeModifications(IonWriter ionWriter, Modification[] modifications) throws IOException, IllegalArgumentException {
         ionWriter.stepIn(IonType.LIST);
         for (Modification modification : modifications) {
             ionWriter.stepIn(IonType.STRUCT);
@@ -344,7 +350,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
      * @param ionWriter : The ION writer to write the entry to.
      * @param modifications : The LDIF changeDNRecord class from wich to retrieve infos to be written.
      */
-    private void writeModifications(IonWriter ionWriter, LDIFModifyDNChangeRecord modifications) throws IOException {
+    private void writeModifications(IonWriter ionWriter, LDIFModifyDNChangeRecord modifications) throws IOException, IllegalArgumentException {
         ionWriter.stepIn(IonType.STRUCT);
         ionWriter.setFieldName("newrdn");
         ionWriter.writeString(modifications.getNewRDN());

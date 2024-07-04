@@ -1,9 +1,12 @@
 package io.kestra.plugin.ldapManager;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.runners.RunContext;
 
 import java.net.URI;
+import java.io.IOException;
 
+import com.amazon.ion.IonException;
 import com.amazon.ion.IonReader;
 import com.amazon.ion.IonSystem;
 import com.amazon.ion.system.IonSystemBuilder;
@@ -19,10 +22,10 @@ final public class Utils {
      * @param runContext : The context of the run.
      * @return The resolved URI, or null if an error occurs.
      */
-    public static URI resolveKestraUri(String file, RunContext runContext) throws Exception {
+    public static URI resolveKestraUri(String file, RunContext runContext) throws IllegalVariableEvaluationException, NullPointerException, IllegalArgumentException {
         try {
             return URI.create(runContext.render(file));
-        } catch (Exception e) {
+        } catch (NullPointerException | IllegalArgumentException e) {
             runContext.logger().error("Invalid URI syntax: {}", e.getMessage());
             throw e;
         }
@@ -34,7 +37,7 @@ final public class Utils {
      * @param runContext : The context of the run.
      * @return A new LDIFReader to read the provided file.
      */
-    public static LDIFReader getLDIFReaderFromUri(String file, RunContext runContext) throws Exception {
+    public static LDIFReader getLDIFReaderFromUri(String file, RunContext runContext) throws IOException, IllegalVariableEvaluationException, NullPointerException, IllegalArgumentException {
         URI resolvedUri = resolveKestraUri(file, runContext);
         return new LDIFReader(runContext.storage().getFile(resolvedUri));
     }
@@ -45,7 +48,7 @@ final public class Utils {
      * @param runContext : The context of the run.
      * @return A new IONReader to read the provided file.
      */
-    public static IonReader getIONReaderFromUri(String file, RunContext runContext) throws Exception {
+    public static IonReader getIONReaderFromUri(String file, RunContext runContext) throws IonException, IllegalArgumentException, IOException, IllegalVariableEvaluationException, NullPointerException {
         URI resolvedUri = resolveKestraUri(file, runContext);
         IonSystem ionSystem = IonSystemBuilder.standard().build();
         return ionSystem.newReader(runContext.storage().getFile(resolvedUri));

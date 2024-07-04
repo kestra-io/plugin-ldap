@@ -106,10 +106,12 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
             for (String file : inputs) {
                 try (LDIFReader reader = Utils.getLDIFReaderFromUri(file, runContext)) {
                     processEntries(reader, connection);
+                } catch (Exception e) {
+                    this.logger.warn("Unable to process file {} completly : {}", file, e.getMessage());
                 }
             }
-        } catch (LDAPException e) {
-            this.logger.error("LDAP error: {}", e.getMessage());
+        } catch (LDAPException e_l) {
+            this.logger.error("LDAP error: {}", e_l.getMessage());
         }
 
         runContext.metric(Counter.of("deletions.requested", this.deletionRequests, "origin", "delete"));
@@ -126,7 +128,7 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
      * @param reader : The LDIFReader containing the entries to be processed.
      * @param connection : The LDAPConnection to the LDAP server.
      */
-    private void processEntries(LDIFReader reader, LDAPConnection connection) throws LDAPException, IOException, LDIFException {
+    private void processEntries(LDIFReader reader, LDAPConnection connection) throws IOException {
         while (true) {
             Entry entry = null;
             try {

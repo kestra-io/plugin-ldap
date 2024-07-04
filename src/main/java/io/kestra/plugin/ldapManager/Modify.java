@@ -107,8 +107,8 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
             for (String inputUri : inputs) {
                 try (LDIFReader reader = Utils.getLDIFReaderFromUri(inputUri, runContext)) {
                     processEntries(reader, connection);
-                } catch (IOException | LDIFException e) {
-                    this.logger.error("Error reading LDIF file: {}", e.getMessage());
+                } catch (Exception e) {
+                    this.logger.error("Error reading LDIF file {} : {}", inputUri, e.getMessage());
                 }
             }
         } catch (LDAPException e) {

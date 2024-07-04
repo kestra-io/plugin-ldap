@@ -106,8 +106,8 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
             for (String inputUri : inputs) {
                 try (LDIFReader reader = Utils.getLDIFReaderFromUri(inputUri, runContext)) {
                     processEntries(reader, connection);
-                } catch (IOException | LDIFException e) {
-                    this.logger.error("Error reading LDIF file: {}", e.getMessage());
+                } catch (Exception e) {
+                    this.logger.error("Error reading LDIF file {} : {}", inputUri, e.getMessage());
                 }
             }
         } catch (LDAPException e) {
@@ -128,7 +128,7 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
      * @param reader : The LDIFReader containing the entries to be processed.
      * @param connection : The LDAPConnection to the LDAP server.
      */
-    private void processEntries(LDIFReader reader, LDAPConnection connection) throws LDAPException, IOException, LDIFException {
+    private void processEntries(LDIFReader reader, LDAPConnection connection) throws IOException {
         while (true) {
             Entry entry = null;
             try {

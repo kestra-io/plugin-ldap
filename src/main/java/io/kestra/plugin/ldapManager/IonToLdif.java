@@ -39,10 +39,13 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
+import lombok.AccessLevel;
 import lombok.Builder;
+import lombok.Builder.Default;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
@@ -75,8 +78,8 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
 
     @Schema(
         title = "URI(s) of file(s) containing ION entries.",
-        description = "ION file(s) to transform to LDIF formated ones.",
-        example = """
+        description = """
+                ION file(s) to transform to LDIF formated ones.
                 I.E. here's an ION file content :
 
                 // simple entry
@@ -104,7 +107,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
             title = "LDIF transformed file(s) URI(s).",
-            example = """
+            description = """
                 I.E. here's a LDIF file content :
 
                 # simple entry
@@ -164,21 +167,26 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
         String newsuperior;
     }
 
-    private Integer count;
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    @Default
+    private Integer count = 0;
     /** The kestra logger (slf4j) for the task. */
-    private static Logger logger = null;
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    @Default
+    private Logger logger = null;
 
     @Override
     public IonToLdif.Output run(RunContext runContext) throws Exception {
-        logger = runContext.logger();
+        this.logger = runContext.logger();
         List<URI> storedResults = new ArrayList<>();
-        this.count = 0;
 
         for (String path : this.inputs) {
             try {
                 storedResults.add(transformIonToLdif(runContext.render(path), runContext));
             } catch (IOException e) {
-                logger.error(e.getMessage());
+                this.logger.error(e.getMessage());
             }
         }
         if (!this.inputs.isEmpty() && storedResults.isEmpty()) {
@@ -223,14 +231,14 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
             try {
                 entry = readIonEntry(ionReader);
             } catch (Exception e) {
-                logger.error("Unable to read entry {}", e.getMessage());
+                this.logger.error("Unable to read entry {}", e.getMessage());
             }
             if (entry != null) {
                 try {
                     ldifWriter.writeLDIFRecord(entry);
                     this.count++;
                 } catch (Exception e) {
-                    logger.error("Unable to write entry {} : {}", entry.toString(), e.getMessage());
+                    this.logger.error("Unable to write entry {} : {}", entry.toString(), e.getMessage());
                 }
             }
             ionReader.stepOut();
@@ -268,7 +276,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
                 newDn = readNewDn(ionReader);
                 ionReader.stepOut();
             } else {
-                logger.warn("Unrecognized field : {}", fieldName);
+                this.logger.warn("Unrecognized field : {}", fieldName);
             }
         }
 
@@ -286,7 +294,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
             }
         }
 
-        logger.warn("Unable to make Ion entry from DN : {}, Attributes {}", dn, attributes);
+        this.logger.warn("Unable to make Ion entry from DN : {}, Attributes {}", dn, attributes);
         return null;
     }
 
@@ -333,7 +341,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
                     }
                     ionReader.stepOut();
                 } else {
-                    logger.warn("Unrecognized field in modification: {}", fieldName);
+                    this.logger.warn("Unrecognized field in modification: {}", fieldName);
                 }
             }
 

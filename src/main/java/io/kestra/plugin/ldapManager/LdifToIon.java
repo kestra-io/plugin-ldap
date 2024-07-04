@@ -38,11 +38,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.ToString;
+import lombok.Builder.Default;
 import lombok.experimental.SuperBuilder;
 
 import org.slf4j.Logger;
@@ -74,8 +77,8 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
 
     @Schema(
         title = "URI(s) of file(s) containing LDIF entries.",
-        description = "LDIF file(s) to transform to ION formated ones.",
-        example = """
+        description = """
+            LDIF file(s) to transform to ION formated ones.
             I.E. here's a LDIF file content :
 
             # simple entry
@@ -129,7 +132,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
             title = "URI(s) of ION translated file(s).",
-            example = """
+            description = """
                 I.E. here's an ION file content :
 
                 // simple entry
@@ -151,30 +154,37 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
      * CODE ------------------------------------------------------------------------------------------------------------------- //
     **/
 
-    private Integer count;
-    private Integer found;
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    @Default
+    private Integer translateCount = 0;
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    @Default
+    private Integer entriesFound = 0;
     /** The kestra logger (slf4j) for the task. */
-    private static Logger logger = null;
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    @Default
+    private Logger logger = null;
 
     @Override
     public LdifToIon.Output run(RunContext runContext) throws Exception {
-        logger = runContext.logger();
+        this.logger = runContext.logger();
         List<URI> storedResults = new ArrayList<>();
-        this.count = 0;
-        this.found = 0;
 
         for (String path : this.inputs) {
             try {
                 storedResults.add(transformLdifToIon(runContext.render(path), runContext));
             } catch (IOException | LDIFException e) {
-                logger.error(e.getMessage());
+                 this.logger.error(e.getMessage());
             }
         }
         if (!this.inputs.isEmpty() && storedResults.isEmpty()) {
             throw new Exception("Not a single file has been translated.");
         }
-        runContext.metric(Counter.of("entries.found", this.found, "origin", "LdifToIon"));
-        runContext.metric(Counter.of("entries.translated", this.count, "origin", "LdifToIon"));
+        runContext.metric(Counter.of("entries.found", this.entriesFound, "origin", "LdifToIon"));
+        runContext.metric(Counter.of("entries.translated", this.translateCount, "origin", "LdifToIon"));
 
         return Output.builder()
             .urisList(storedResults)
@@ -217,10 +227,10 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
                 if (ldifRecord == null) break;
                 record = ldifRecord.toLDIF();
             } catch (LDIFException e) {
-                logger.warn("Canno't read LDIF entry {}, {}", e.getDataLines(), e.getMessage());
+                 this.logger.warn("Canno't read LDIF entry {}, {}", e.getDataLines(), e.getMessage());
                 continue;
             } catch (IOException e) {
-                logger.error(e.getMessage());
+                 this.logger.error(e.getMessage());
                 continue;
             }
             try {
@@ -229,17 +239,17 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
                 try {
                     entry = LDIFReader.decodeEntry(record);
                 } catch (LDIFException e_entry) {
-                    logger.warn("Translation failed, not an Entry nor a ChangeRecord : {}, {}, {}", record.toString(), e_entry.getMessage(), e_change.getMessage());
+                     this.logger.warn("Translation failed, not an Entry nor a ChangeRecord : {}, {}, {}", record.toString(), e_entry.getMessage(), e_change.getMessage());
                 }
             }
             if (entry == null && changeRecord == null) break;
-            this.found++;
+            this.entriesFound++;
             if (entry != null) {
                 writeIonEntry(ionWriter, entry);
             } else {
                 writeIonChangeRecord(ionWriter, changeRecord);
             }
-            this.count++;
+            this.translateCount++;
         }
     }
 

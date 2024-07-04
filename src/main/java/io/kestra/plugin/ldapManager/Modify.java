@@ -29,9 +29,12 @@ import java.time.Duration;
 import java.util.List;
 import java.util.ArrayList;
 
+import lombok.AccessLevel;
+import lombok.Builder.Default;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.ToString;
 
 import lombok.experimental.SuperBuilder;
@@ -81,17 +84,26 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
     **/
 
     /** The kestra logger (slf4j) for the task. */
-    private static Logger logger = null;
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    @Default
+    private Logger logger = null;
 
-    private Integer modificationsDone;
-    private Integer modificationRequests;
-    private List<Long> modificationsTimes;
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    @Default
+    private Integer modificationsDone = 0;
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    @Default
+    private Integer modificationRequests = 0;
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    @Default
+    private List<Long> modificationsTimes = new ArrayList<>();
 
     public VoidOutput run(RunContext runContext) throws Exception {
-        logger = runContext.logger();
-        this.modificationRequests = 0;
-        this.modificationsDone = 0;
-        this.modificationsTimes = new ArrayList<>();
+        this.logger = runContext.logger();
 
         try (LDAPConnection connection = this.getLdapConnection()) {
             for (String inputUri : inputs) {
@@ -101,11 +113,11 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
                 try (LDIFReader reader = new LDIFReader(runContext.storage().getFile(resolvedUri))) {
                     processEntries(reader, connection);
                 } catch (IOException | LDIFException e) {
-                    logger.error("Error reading LDIF file: {}", e.getMessage());
+                    this.logger.error("Error reading LDIF file: {}", e.getMessage());
                 }
             }
         } catch (LDAPException e) {
-            logger.error("LDAP error: {}", e.getResultString());
+            this.logger.error("LDAP error: {}", e.getResultString());
         }
         runContext.metric(Counter.of("modifications.requested", this.modificationRequests, "origin", "input"));
         runContext.metric(Counter.of("modifications.done", this.modificationsDone, "origin", "input"));
@@ -128,7 +140,7 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
             try {
                 entry = reader.readChangeRecord();
             } catch (LDIFException e) {
-                logger.error("Cannot read entry: {}", e.getDataLines());
+                this.logger.error("Cannot read entry: {}", e.getDataLines());
                 continue;
             }
 
@@ -136,18 +148,18 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
                 break;
             }
 
-            modificationRequests++;
+            this.modificationRequests++;
             long startTime = System.currentTimeMillis();
             try {
                 LDAPResult result = entry.processChange(connection);
                 if (result.getResultCode() == ResultCode.SUCCESS) {
-                    modificationsTimes.add(System.currentTimeMillis() - startTime);
-                    modificationsDone++;
+                    this.modificationsTimes.add(System.currentTimeMillis() - startTime);
+                    this.modificationsDone++;
                 } else {
-                    logger.warn("Cannot modify entry: {}, LDAP response: {}", entry.toLDIF(), result.getResultString());
+                    this.logger.warn("Cannot modify entry: {}, LDAP response: {}", entry.toLDIF(), result.getResultString());
                 }
             } catch (LDAPException e) {
-                logger.error("Error modifying entry {}: {}", entry.getDN(), e.getResultString());
+                this.logger.error("Error modifying entry {}: {}", entry.getDN(), e.getResultString());
             }
         }
     }
@@ -162,7 +174,7 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
         try {
             return URI.create(runContext.render(file));
         } catch (Exception e) {
-            logger.error("Invalid URI syntax: {}", e.getMessage());
+            this.logger.error("Invalid URI syntax: {}", e.getMessage());
             return null;
         }
     }

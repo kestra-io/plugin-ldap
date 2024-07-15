@@ -145,7 +145,7 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
         Integer entriesFound = 0;
         Long searchTime = 0L;
 
-        try (LDAPConnection connection = this.getLdapConnection()) {
+        try (LDAPConnection connection = this.getLdapConnection(runContext)) {
             filter = filter.replaceAll("\n\\s*", "");
             SearchRequest request = new SearchRequest(
                 baseDn, sub, filter,

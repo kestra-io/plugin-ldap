@@ -3,9 +3,10 @@ package io.kestra.plugin.ldapManager;
 import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPException;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.Task;
-
+import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import jakarta.validation.constraints.NotNull;
@@ -28,11 +29,11 @@ public abstract class LdapConnection extends Task {
 
     @Schema(
         title = "Port",
-        description = "Port for connection."
+        description = "A whole number describing the port for connection."
     )
     @PluginProperty(dynamic = true)
     @NotNull
-    protected Integer port;
+    protected String port;
 
     @Schema(
         title = "User DN",
@@ -52,9 +53,15 @@ public abstract class LdapConnection extends Task {
 
     /**
      * Opens a connection with user provided informations.
+     * @param runContext : A context that may evaluate pebble expressions regarding the connection informations.
      * @return A new LDAPConnection to perform action with the LDAP server.
      */
-    protected LDAPConnection getLdapConnection() throws LDAPException {
-        return new LDAPConnection(hostname, port, userDn, password);
+    protected LDAPConnection getLdapConnection(RunContext runContext) throws LDAPException, IllegalVariableEvaluationException {
+        return new LDAPConnection(
+            runContext.render(hostname),
+            Integer.parseInt(runContext.render(port)),
+            runContext.render(userDn),
+            runContext.render(password)
+            );
     }
 }

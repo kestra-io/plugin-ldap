@@ -102,7 +102,7 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
     public VoidOutput run(RunContext runContext) throws Exception {
         this.logger = runContext.logger();
 
-        try (LDAPConnection connection = this.getLdapConnection()) {
+        try (LDAPConnection connection = this.getLdapConnection(runContext)) {
             for (String inputUri : inputs) {
                 try (LDIFReader reader = Utils.getLDIFReaderFromUri(inputUri, runContext)) {
                     processEntries(reader, connection);

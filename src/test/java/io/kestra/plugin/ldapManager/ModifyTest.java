@@ -54,7 +54,7 @@ public class ModifyTest {
     private Modify makeTask(List<String> files) {
         return Modify.builder()
             .hostname(ldap.getHost())
-            .port(ldap.getMappedPort(Commons.EXPOSED_PORTS[0]))
+            .port(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
             .userDn(Commons.USER)
             .password(Commons.PASS)
 

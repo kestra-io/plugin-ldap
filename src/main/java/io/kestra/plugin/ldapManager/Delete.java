@@ -102,7 +102,7 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
     public VoidOutput run(RunContext runContext) throws Exception {
         this.logger = runContext.logger();
 
-        try (LDAPConnection connection = this.getLdapConnection()) {
+        try (LDAPConnection connection = this.getLdapConnection(runContext)) {
             for (String file : inputs) {
                 try (LDIFReader reader = Utils.getLDIFReaderFromUri(file, runContext)) {
                     processEntries(reader, connection);

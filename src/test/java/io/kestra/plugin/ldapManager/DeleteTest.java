@@ -55,7 +55,7 @@ public class DeleteTest {
     private Delete makeTask(List<String> files) {
         return Delete.builder()
             .hostname(ldap.getHost())
-            .port(ldap.getMappedPort(Commons.EXPOSED_PORTS[0]))
+            .port(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
             .userDn(Commons.USER)
             .password(Commons.PASS)
 

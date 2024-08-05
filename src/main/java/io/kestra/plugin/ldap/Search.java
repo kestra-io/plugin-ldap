@@ -1,4 +1,4 @@
-package io.kestra.plugin.ldapManager;
+package io.kestra.plugin.ldap;
 
 import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPException;

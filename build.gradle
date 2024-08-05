@@ -155,7 +155,7 @@ jar {
     manifest {
         attributes(
                 "X-Kestra-Name": project.name,
-                "X-Kestra-Title": "LDAP manager",
+                "X-Kestra-Title": "LDAP",
                 "X-Kestra-Group": project.group + ".ldap",
                 "X-Kestra-Description": project.description,
                 "X-Kestra-Version": project.version

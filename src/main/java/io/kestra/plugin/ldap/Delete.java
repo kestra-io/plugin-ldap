@@ -1,5 +1,6 @@
-package io.kestra.plugin.ldapManager;
+package io.kestra.plugin.ldap;
 
+import com.unboundid.ldap.sdk.DeleteRequest;
 import com.unboundid.ldap.sdk.Entry;
 import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPException;
@@ -44,33 +45,32 @@ import org.slf4j.Logger;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Insert entries in LDAP.",
-    description = "Creates a new entry, if allowed, for each line of provided LDIF files."
+    title = "Remove entries in LDAP.",
+    description = "Remove entries based on a targeted DN list."
 )
 @Plugin(
     examples = {
         @io.kestra.core.models.annotations.Example(
-            title = "Insert entries in LDAP server.",
             code = {
                 "description: What your task is supposed to do and why.",
-                "userDn: cn=admin,dc=orga,dc=en",
+                "userDn: cn=admin,dc=orga,dc=fr",
                 "password: admin",
                 "inputs:",
                 "   - \"{{outputs.someTask.uri_of_ldif_formated_file}}\"",
                 "hostname: 0.0.0.0",
-                "port: 18060"
+                "port: 15060"
             }
         )
     }
 )
-public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
+public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
     /**
      * INPUTS ----------------------------------------------------------------------------------------------------------------- //
     **/
 
     @Schema(
-        title = "URI(s) of input file(s)",
-        description = "List of URI(s) of file(s) containing LDIF formatted entries to input into LDAP."
+        title = "File(s) URI(s) containing Distinguished-Name(s)",
+        description = "Targeted DN(s) in the LDAP."
     )
     @PluginProperty(dynamic = true)
     @NotNull
@@ -83,15 +83,15 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
     @Default
-    private Integer additionsDone = 0;
+    private Integer deletionsDone = 0;
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
     @Default
-    private Integer additionRequests = 0;
+    private Integer deletionRequests = 0;
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
     @Default
-    private List<Long> additionsTimes = new ArrayList<>();
+    private List<Long> deletionsTimes = new ArrayList<>();
     /** The kestra logger (slf4j) for the task. */
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
@@ -103,28 +103,28 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
         this.logger = runContext.logger();
 
         try (LDAPConnection connection = this.getLdapConnection(runContext)) {
-            for (String inputUri : inputs) {
-                try (LDIFReader reader = Utils.getLDIFReaderFromUri(inputUri, runContext)) {
+            for (String file : inputs) {
+                try (LDIFReader reader = Utils.getLDIFReaderFromUri(file, runContext)) {
                     processEntries(reader, connection);
                 } catch (Exception e) {
-                    this.logger.error("Error reading LDIF file {} : {}", inputUri, e.getMessage());
+                    this.logger.warn("Unable to process file {} completly : {}", file, e.getMessage());
                 }
             }
-        } catch (LDAPException e) {
-            this.logger.error("LDAP error: {}", e.getResultString());
+        } catch (LDAPException e_l) {
+            this.logger.error("LDAP error: {}", e_l.getMessage());
         }
-        runContext.metric(Counter.of("additions.requested", this.additionRequests, "origin", "input"));
-        runContext.metric(Counter.of("additions.done", this.additionsDone, "origin", "input"));
 
-        if (!this.additionsTimes.isEmpty()) {
-            Long meanTime = this.additionsTimes.stream().mapToLong(Long::longValue).sum() / this.additionsDone;
-            runContext.metric(Timer.of("additions.meanTime", Duration.ofMillis(meanTime), "origin", "input"));
+        runContext.metric(Counter.of("deletions.requested", this.deletionRequests, "origin", "delete"));
+        runContext.metric(Counter.of("deletions.done", this.deletionsDone, "origin", "delete"));
+        if (!this.deletionsTimes.isEmpty()) {
+            Long meanTime = this.deletionsTimes.stream().mapToLong(Long::longValue).sum() / this.deletionsDone;
+            runContext.metric(Timer.of("deletions.meanTime", Duration.ofMillis(meanTime), "origin", "delete"));
         }
         return new VoidOutput();
     }
 
     /**
-     * Processes the entries from the LDIFReader and attempts to add them to the LDAP server.
+     * Processes the entries from the LDIFReader and attempts to delete them from the LDAP server.
      * @param reader : The LDIFReader containing the entries to be processed.
      * @param connection : The LDAPConnection to the LDAP server.
      */
@@ -138,22 +138,21 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
                 continue;
             }
             if (entry == null) break;
-
-            this.additionRequests++;
-            Long startTime = System.currentTimeMillis();
+            this.deletionRequests++;
+            String baseDn = entry.getDN();
+            DeleteRequest deleteRequest = new DeleteRequest(baseDn);
+            Long startMillis = System.currentTimeMillis();
             try {
-                LDAPResult result = connection.add(entry);
+                LDAPResult result = connection.delete(deleteRequest);
                 if (result.getResultCode() == ResultCode.SUCCESS) {
-                    this.additionsTimes.add(System.currentTimeMillis() - startTime);
-                    this.additionsDone++;
+                    this.deletionsTimes.add(System.currentTimeMillis() - startMillis);
+                    this.deletionsDone++;
                 } else {
-                    this.logger.warn("Cannot add entry: {}, LDAP response: {}", entry.toLDIF(), result.getResultString());
+                    this.logger.warn("Cannot remove entry '{}', LDAP response : {}", baseDn, result.getResultString());
                 }
             } catch (LDAPException e) {
-                this.logger.error("Error adding entry {}: {}", entry.getDN(), e.getResultString());
+                this.logger.error("Error deleting DN '{}': {}", baseDn, e.getMessage());
             }
         }
     }
-
-
 }

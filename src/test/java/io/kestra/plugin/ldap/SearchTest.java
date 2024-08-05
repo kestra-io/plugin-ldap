@@ -1,4 +1,4 @@
-package io.kestra.plugin.ldapManager;
+package io.kestra.plugin.ldap;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;

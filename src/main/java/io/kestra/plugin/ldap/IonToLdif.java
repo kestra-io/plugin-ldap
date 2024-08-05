@@ -1,4 +1,4 @@
-package io.kestra.plugin.ldapManager;
+package io.kestra.plugin.ldap;
 
 import com.amazon.ion.IonException;
 import com.amazon.ion.IonReader;

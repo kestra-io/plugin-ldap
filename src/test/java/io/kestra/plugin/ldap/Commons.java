@@ -1,4 +1,4 @@
-package io.kestra.plugin.ldapManager;
+package io.kestra.plugin.ldap;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;

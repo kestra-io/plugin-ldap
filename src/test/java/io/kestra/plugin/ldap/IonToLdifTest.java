@@ -1,4 +1,4 @@
-package io.kestra.plugin.ldapManager;
+package io.kestra.plugin.ldap;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.runners.RunContext;

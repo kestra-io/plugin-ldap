@@ -51,7 +51,7 @@ import org.slf4j.Logger;
         @io.kestra.core.models.annotations.Example(
             title = """
                     Retrieve LDAP entries.
-                    In this exemple, assuming that their is exactly one entry matching each of our filter,
+                    In this example, assuming that their is exactly one entry matching each of our filter,
                     the outputs of the task would be four entries in this order (since we search two times in the same baseDn) :
                     (dn, description, mail) of {melusine, metatron, melusine, metatron}.""",
             code = {

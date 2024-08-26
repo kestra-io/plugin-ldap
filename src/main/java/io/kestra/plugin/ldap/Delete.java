@@ -51,15 +51,22 @@ import org.slf4j.Logger;
 @Plugin(
     examples = {
         @io.kestra.core.models.annotations.Example(
-            code = {
-                "description: What your task is supposed to do and why.",
-                "userDn: cn=admin,dc=orga,dc=fr",
-                "password: admin",
-                "inputs:",
-                "   - \"{{outputs.someTask.uri_of_ldif_formated_file}}\"",
-                "hostname: 0.0.0.0",
-                "port: 15060"
-            }
+            full = true,
+            code = """
+                id: ldap_delete
+                namespace: company.team
+                
+                tasks:
+                  - id: delete
+                    type: io.kestra.plugin.ldap.Delete
+                    description: What your task is supposed to do and why.
+                    userDn: cn=admin,dc=orga,dc=fr
+                    password: admin
+                    inputs:
+                       - "{{ outputs.some_task.uri_of_ldif_formated_file }}"
+                    hostname: 0.0.0.0
+                    port: 15060
+                """
         )
     }
 )

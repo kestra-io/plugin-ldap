@@ -54,18 +54,24 @@ import org.slf4j.Logger;
                     In this example, assuming that their is exactly one entry matching each of our filter,
                     the outputs of the task would be four entries in this order (since we search two times in the same baseDn) :
                     (dn, description, mail) of {melusine, metatron, melusine, metatron}.""",
-            code = {
-                "description: What your task is supposed to do and why.",
-                "userDn: cn=admin,dc=orga,dc=en",
-                "password: admin",
-                "baseDn: ou=people,dc=orga,dc=en",
-                "filter: (|(sn=melusine*)(sn=metatron*))",
-                "attributes:",
-                "  - description",
-                "  - mail",
-                "hostname: 0.0.0.0",
-                "port: 15060"
-            }
+            full = true,
+            code = """
+                id: ldap_search
+                namespace: company.team
+                
+                tasks:
+                  - id: search
+                    type: io.kestra.plugin.ldap.Search
+                    userDn: cn=admin,dc=orga,dc=en
+                    password: admin
+                    baseDn: ou=people,dc=orga,dc=en
+                    filter: (|(sn=melusine*)(sn=metatron*))
+                    attributes:
+                      - description
+                      - mail
+                    hostname: 0.0.0.0
+                    port: 15060
+                """
         )
     }
 )

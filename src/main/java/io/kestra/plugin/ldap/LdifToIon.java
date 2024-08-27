@@ -64,10 +64,25 @@ import org.slf4j.Logger;
     examples = {
         @io.kestra.core.models.annotations.Example(
             title = "Make ION entries from LDIF ones.",
-            code = { "description: What your task is supposed to do and why.",
-            "inputs:",
-            " - {{some_uri}}",
-            " - {{some_other_uri}}"}
+            full = true,
+            code = """
+                id: ldap_ldif_to_ion
+                namespace: company.team
+                
+                inputs:
+                  - id: file1
+                    type: FILE
+                  - id: file2
+                    type: FILE
+                
+                tasks:
+                  - id: ldif_to_ion
+                    type: io.kestra.plugin.ldap.LdifToIon
+                    inputs:
+                      - "{{ inputs.file1 }}"
+                      - "{{ inputs.file2 }}"
+
+                """
         ),
         @io.kestra.core.models.annotations.Example(
             title = "INPUT example : here's an LDIF file content that may be inputted :",

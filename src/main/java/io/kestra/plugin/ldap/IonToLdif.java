@@ -61,14 +61,28 @@ import org.slf4j.Logger;
 @Plugin(
     examples = {
         @io.kestra.core.models.annotations.Example(
-            title = "YAML : Make LDIF entries from ION ones.",
-            code = { "description: What your task is supposed to do and why.",
-            "inputs:",
-            " - {{some_uri}}",
-            " - {{some_other_uri}}"}
+            title = "YAML: Make LDIF entries from ION ones.",
+            full = true,
+            code = """
+                id: ldap_ion_to_ldif
+                namespace: company.team
+
+                inputs:
+                  - id: file1
+                    type: FILE
+                  - id: file2
+                    type: FILE
+
+                tasks:
+                  - id: ion_to_ldiff
+                    type: io.kestra.plugin.ldap.IonToLdif
+                    inputs:
+                      - "{{ inputs.file1 }}"
+                      - "{{ inputs.file2 }}"
+                """
         ),
         @io.kestra.core.models.annotations.Example(
-            title = "INPUT example : here's an ION file content that may be inputted :",
+            title = "INPUT example: here's an ION file content that may be inputted :",
             code = {"""
             # simple entry
             {dn:"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description","Some other description"],someOtherAttribute:["perhaps","perhapsAgain"]}}
@@ -84,7 +98,7 @@ import org.slf4j.Logger;
             full = true
         ),
         @io.kestra.core.models.annotations.Example(
-            title = "OUTPUT example : here's an LDIF file content that may be outputted :",
+            title = "OUTPUT example: here's an LDIF file content that may be outputted :",
             code = {"""
             # simple entry
             dn: cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com

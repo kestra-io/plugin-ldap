@@ -51,15 +51,22 @@ import org.slf4j.Logger;
     examples = {
         @io.kestra.core.models.annotations.Example(
             title = "Insert entries in LDAP server.",
-            code = {
-                "description: What your task is supposed to do and why.",
-                "userDn: cn=admin,dc=orga,dc=en",
-                "password: admin",
-                "inputs:",
-                "   - \"{{outputs.someTask.uri_of_ldif_formated_file}}\"",
-                "hostname: 0.0.0.0",
-                "port: 18060"
-            }
+            full = true,
+            code = """
+                id: ldap_add
+                namespace: company.team
+
+                tasks:
+                  - id: add
+                    type: io.kestra.plugin.ldap.Add
+                    description: What your task is supposed to do and why.
+                    userDn: cn=admin,dc=orga,dc=en
+                    password: admin
+                    inputs:
+                       - "{{outputs.someTask.uri_of_ldif_formated_file}}"
+                    hostname: 0.0.0.0
+                    port: 18060
+                """
         )
     }
 )

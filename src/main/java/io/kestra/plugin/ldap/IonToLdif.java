@@ -33,8 +33,9 @@ import java.io.File;
 import java.io.IOException;
 
 import java.net.URI;
-
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 
 import lombok.AccessLevel;
@@ -83,31 +84,33 @@ import org.slf4j.Logger;
         ),
         @io.kestra.core.models.annotations.Example(
             title = "INPUT example: here's an ION file content that may be inputted :",
+            full = true,
             code = {"""
-            # simple entry
-            {dn:"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description","Some other description"],someOtherAttribute:["perhaps","perhapsAgain"]}}
-            # modify changeRecord
-            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"modify",modifications:[{operation:"DELETE",attribute:"description",values:["Some description 3"]},{operation:"ADD",attribute:"description",values:["Some description 4"]},{operation:"REPLACE",attribute:"someOtherAttribute",values:["Loves herself more"]}]}
+            # simple entry (containing base64 encoded fields)
+            {dn:"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description",base64::"TGlzdGUgZCfDVVQ=","Some other description"],someOtherAttribute:["perhaps","perhapsAgain"]}}
+            # modify changeRecord (containing base64 encoded fields)
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"modify",modifications:[{operation:"DELETE",attribute:"description",values:["Some description 3"]},{operation:"ADD",attribute:"description",values:["Some description 4"]},{operation:"REPLACE",attribute:"someOtherAttribute",values:[base64::"TGlzdGUgZCfDVVQ="]}]}
             # delete changeRecord
             {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"delete"}
             # moddn changeRecord (it is mandatory to specify a newrdn and a deleteoldrdn)
             {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:false,newsuperior:"ou=expeople,dc=example,dc=com"}}
             # moddn changeRecord without new superior (it is optional to specify a new superior field)
             {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:true}}
-            """},
-            full = true
+            """}
         ),
         @io.kestra.core.models.annotations.Example(
             title = "OUTPUT example: here's an LDIF file content that may be outputted :",
+            full = true,
             code = {"""
-            # simple entry
+            # simple entry (containing base64 encoded fields)
             dn: cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com
             description: Some description
-            someOtherAttribute: perhaps
+            description:: TGlzdGUgZCfDVVQ=
             description: Some other description
+            someOtherAttribute: perhaps
             someOtherAttribute: perhapsAgain
 
-            # modify changeRecord
+            # modify changeRecord (containing base64 encoded fields)
             dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
             changetype: modify
             delete: description
@@ -117,7 +120,7 @@ import org.slf4j.Logger;
             description: Some description 4
             -
             replace: someOtherAttribute
-            someOtherAttribute: Loves herself more
+            someOtherAttribute:: TGlzdGUgZCfDVVQ=
             -
 
             # delete changeRecord
@@ -136,8 +139,7 @@ import org.slf4j.Logger;
             changetype: moddn
             newrdn: cn=triss@orga.com
             deleteoldrdn: 1
-            """},
-            full = true
+            """}
         )
     }
 )
@@ -265,6 +267,21 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
     }
 
     /**
+     * Return the value of the field and handle potential base64 encoded value.
+     * @param ionReader : An IonReader positionned at the current field to evaluate. It does not perform any shift in the document readed.
+     * @return The value of a field.
+     */
+    private byte[] getStringValue(IonReader ionReader) {
+        String value = ionReader.stringValue();
+        for (String annotation : ionReader.getTypeAnnotations()) {
+            if (annotation.equals("base64")) {
+                return Base64.getDecoder().decode(value.getBytes(StandardCharsets.UTF_8));
+            }
+        }
+        return value.getBytes(StandardCharsets.UTF_8);
+    }
+
+    /**
      * Reads an entry from the ION reader.
      * @param ionReader : The ION reader to read the entry from.
      * @return The LDIF entry read from the ION reader.
@@ -278,6 +295,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
 
         while (ionReader.next() != null) {
             String fieldName = ionReader.getFieldName();
+
             if ("dn".equals(fieldName)) {
                 dn = ionReader.stringValue();
             } else if ("attributes".equals(fieldName)) {
@@ -298,7 +316,6 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
                 this.logger.warn("Unrecognized field : {}", fieldName);
             }
         }
-
         if (dn != null) {
             if (changeType == null) {
                 return new Entry(dn, attributes);
@@ -346,7 +363,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
             ionReader.stepIn();
             String operation = null;
             String attributeName = null;
-            List<String> values = new ArrayList<>();
+            List<byte[]> values = new ArrayList<>();
 
             while (ionReader.next() != null) {
                 String fieldName = ionReader.getFieldName();
@@ -357,7 +374,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
                 } else if ("values".equals(fieldName)) {
                     ionReader.stepIn();
                     while (ionReader.next() != null) {
-                        values.add(ionReader.stringValue());
+                        values.add(getStringValue(ionReader));
                     }
                     ionReader.stepOut();
                 } else {
@@ -381,7 +398,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
                         modType = ModificationType.REPLACE;
                         break;
                 }
-                modifications.add(new Modification(modType, attributeName, values.toArray(new String[0])));
+                modifications.add(new Modification(modType, attributeName, values.toArray(new byte[values.size()][])));
             }
             ionReader.stepOut();
         }
@@ -399,14 +416,13 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
         while (ionReader.next() != null) {
             String attributeName = ionReader.getFieldName();
             ionReader.stepIn();
-            List<String> values = new ArrayList<>();
+            List<byte[]> values = new ArrayList<>();
             while (ionReader.next() != null) {
-                values.add(ionReader.stringValue());
+                values.add(getStringValue(ionReader));
             }
             ionReader.stepOut();
-            attributes.add(new Attribute(attributeName, values));
+            attributes.add(new Attribute(attributeName, values.toArray(new byte[values.size()][])));
         }
-
         return attributes;
     }
 }

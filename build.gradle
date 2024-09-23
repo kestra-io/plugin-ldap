@@ -49,7 +49,7 @@ dependencies {
     compileOnly'org.slf4j:slf4j-api:2.0.13'
 
     // libs included in the final jar
-    implementation group: 'com.amazon.ion', name: 'ion-java', version: '1.11.8'
+    implementation group: 'com.amazon.ion', name: 'ion-java', version: '1.11.9'
     implementation group: 'com.unboundid', name: 'unboundid-ldapsdk', version: '7.0.1'
 }
 

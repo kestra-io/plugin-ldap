@@ -28,7 +28,7 @@ public class IonToLdifTest {
         // specific test values :
         inputs.add("""
             {dn:"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description 1","Melusine lover"],someOtherAttribute:["perhaps","perhapsAgain"]}}
-            {dn:"cn=tony@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description 2","Melusine lover as well"],someOtherAttribute:["perhaps 2","perhapsAgain 2"]}}""");// fst file
+            {dn:"cn=tony@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description 2","Melusine lover as well"],someOtherAttribute:["perhaps 2",base64::"TGlzdGUgZCfDVVQ=","perhapsAgain 2"]}}""");// fst file
         inputs.add("""
             {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description 3"],someOtherAttribute:["Melusine lover, obviously"]}}
             {dn:"cn=yennefer@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description 2"],someOtherAttribute:["Loves herself"]}}""");// scnd file
@@ -37,7 +37,7 @@ public class IonToLdifTest {
             {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:false,newsuperior:"ou=expeople,dc=example,dc=com"}}
             {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:true,newsuperior:"ou=expeople,dc=example,dc=com"}}
             {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:true}}
-            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"add",attributes:{description:["Some description 3"],someOtherAttribute:["Melusine lover, obviously"]}}""");// third file, includes changeType
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"add",attributes:{description:[base64::"TGlzdGUgZCfDVVQ="],someOtherAttribute:["Melusine lover, obviously"]}}""");// third file, includes changeType
         expectations.add("""
             dn: cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com
             description: Some description 1
@@ -49,6 +49,7 @@ public class IonToLdifTest {
             description: Some description 2
             description: Melusine lover as well
             someOtherAttribute: perhaps 2
+            someOtherAttribute:: TGlzdGUgZCfDVVQ=
             someOtherAttribute: perhapsAgain 2
 
             """);// fst file
@@ -100,7 +101,7 @@ public class IonToLdifTest {
 
             dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
             changetype: add
-            description: Some description 3
+            description:: TGlzdGUgZCfDVVQ=
             someOtherAttribute: Melusine lover, obviously
 
             """);// third file

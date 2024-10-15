@@ -4,7 +4,7 @@ import com.amazon.ion.IonSystem;
 import com.amazon.ion.IonType;
 import com.amazon.ion.IonWriter;
 import com.amazon.ion.system.IonSystemBuilder;
-
+import com.unboundid.asn1.ASN1OctetString;
 import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.ChangeType;
 import com.unboundid.ldap.sdk.Entry;
@@ -34,8 +34,8 @@ import java.io.File;
 import java.io.IOException;
 
 import java.net.URI;
-
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
 
@@ -68,13 +68,13 @@ import org.slf4j.Logger;
             code = """
                 id: ldap_ldif_to_ion
                 namespace: company.team
-                
+
                 inputs:
                   - id: file1
                     type: FILE
                   - id: file2
                     type: FILE
-                
+
                 tasks:
                   - id: ldif_to_ion
                     type: io.kestra.plugin.ldap.LdifToIon
@@ -86,15 +86,17 @@ import org.slf4j.Logger;
         ),
         @io.kestra.core.models.annotations.Example(
             title = "INPUT example : here's an LDIF file content that may be inputted :",
+            full = true,
             code = {"""
-            # simple entry
+            # simple entry (containing base64 encoded fields)
             dn: cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com
             description: Some description
             someOtherAttribute: perhaps
+            description:: TGlzdGUgZCfDVVQ=
             description: Some other description
             someOtherAttribute: perhapsAgain
 
-            # modify changeRecord
+            # modify changeRecord (containing base64 encoded fields)
             dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
             changetype: modify
             delete: description
@@ -104,7 +106,7 @@ import org.slf4j.Logger;
             description: Some description 4
             -
             replace: someOtherAttribute
-            someOtherAttribute: Loves herself more
+            someOtherAttribute:: TGlzdGUgZCfDVVQ=
             -
 
             # delete changeRecord
@@ -127,11 +129,12 @@ import org.slf4j.Logger;
         ),
         @io.kestra.core.models.annotations.Example(
             title = "OUTPUT example : here's an ION file content that may be outputted :",
+            full = true,
             code = {"""
-            # simple entry
-            {dn:"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description","Some other description"],someOtherAttribute:["perhaps","perhapsAgain"]}}
-            # modify changeRecord
-            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"modify",modifications:[{operation:"DELETE",attribute:"description",values:["Some description 3"]},{operation:"ADD",attribute:"description",values:["Some description 4"]},{operation:"REPLACE",attribute:"someOtherAttribute",values:["Loves herself more"]}]}
+            # simple entry (containing base64 encoded fields)
+            {dn:"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description",base64::"TGlzdGUgZCfDVVQ=","Some other description"],someOtherAttribute:["perhaps","perhapsAgain"]}}
+            # modify changeRecord (containing base64 encoded fields)
+            {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"modify",modifications:[{operation:"DELETE",attribute:"description",values:["Some description 3"]},{operation:"ADD",attribute:"description",values:["Some description 4"]},{operation:"REPLACE",attribute:"someOtherAttribute",values:[base64::"TGlzdGUgZCfDVVQ="]}]}
             # delete changeRecord
             {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"delete"}
             # moddn changeRecord (it is mandatory to specify a newrdn and a deleteoldrdn)
@@ -301,8 +304,13 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
         for (Attribute attribute : attributes) {
             ionWriter.setFieldName(attribute.getName());
             ionWriter.stepIn(IonType.LIST);
-            for (String value : attribute.getValues()) {
-                ionWriter.writeString(value);
+            for (ASN1OctetString value : attribute.getRawValues()) {
+                if (Attribute.needsBase64Encoding(value.getValue())) {
+                    ionWriter.addTypeAnnotation("base64");
+                    ionWriter.writeString(Base64.getEncoder().encodeToString(value.getValue()));
+                } else {
+                    ionWriter.writeString(value.toString());
+                }
             }
             ionWriter.stepOut();
         }
@@ -355,8 +363,13 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
 
             ionWriter.setFieldName("values");
             ionWriter.stepIn(IonType.LIST);
-            for (String value : modification.getValues()) {
-                ionWriter.writeString(value);
+            for (ASN1OctetString value : modification.getRawValues()) {
+                if (Attribute.needsBase64Encoding(value.getValue())) {
+                    ionWriter.addTypeAnnotation("base64");
+                    ionWriter.writeString(Base64.getEncoder().encodeToString(value.getValue()));
+                } else {
+                    ionWriter.writeString(value.toString());
+                }
             }
             ionWriter.stepOut();
 

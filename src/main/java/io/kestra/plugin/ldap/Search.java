@@ -99,7 +99,6 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
                 `--> This special attribute canno't be combined with other attributes and the search will ignore everything else.
             """
     )
-    @PluginProperty(dynamic = true)
     @Default
     private List<String> attributes = Arrays.asList(SearchRequest.ALL_USER_ATTRIBUTES);
 
@@ -120,7 +119,6 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
             SUB -- Indicates that the base entry itself and any subordinate entries (to any depth) should be considered.
             SUBORDINATE_SUBTREE -- Indicates that any subordinate entries (to any depth) below the entry specified by the base DN should be considered, but the base entry itself should not be considered, as described in draft-sermersheim-ldap-subordinate-scope."""
     )
-    @PluginProperty(dynamic = true)
     @Default
     private SearchScope sub = SearchScope.SUB;
 
@@ -152,9 +150,9 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
         Long searchTime = 0L;
 
         try (LDAPConnection connection = this.getLdapConnection(runContext)) {
-            filter = filter.replaceAll("\n\\s*", "");
+            filter = runContext.render(filter).replaceAll("\n\\s*", "");
             SearchRequest request = new SearchRequest(
-                baseDn, sub, filter,
+                runContext.render(baseDn), sub, filter,
                 attributes.contains("0.0") ? SearchRequest.REQUEST_ATTRS_DEFAULT : attributes.toArray(new String[0])
             );
             Long startTime = System.currentTimeMillis();

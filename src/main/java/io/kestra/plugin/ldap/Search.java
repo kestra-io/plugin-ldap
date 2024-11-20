@@ -121,6 +121,7 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
             SUBORDINATE_SUBTREE -- Indicates that any subordinate entries (to any depth) below the entry specified by the base DN should be considered, but the base entry itself should not be considered, as described in draft-sermersheim-ldap-subordinate-scope."""
     )
     @Default
+    @PluginProperty
     private SearchScope sub = SearchScope.SUB;
 
     /**

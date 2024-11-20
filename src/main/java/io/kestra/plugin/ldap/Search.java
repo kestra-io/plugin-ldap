@@ -58,7 +58,7 @@ import org.slf4j.Logger;
             code = """
                 id: ldap_search
                 namespace: company.team
-                
+
                 tasks:
                   - id: search
                     type: io.kestra.plugin.ldap.Search
@@ -99,6 +99,7 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
                 `--> This special attribute canno't be combined with other attributes and the search will ignore everything else.
             """
     )
+    @PluginProperty
     @Default
     private List<String> attributes = Arrays.asList(SearchRequest.ALL_USER_ATTRIBUTES);
 

@@ -56,6 +56,7 @@ final class Commons {
             try {
                 filePath = storageInterface.put(
                     null,
+                    null,
                     URI.create("/" + IdUtils.create() + extension),
                     new ByteArrayInputStream(content.getBytes())
                 );
@@ -77,8 +78,8 @@ final class Commons {
      * @param storageInterface : The StorageInterface that should contain the file.
      */
     public static void assertResult(String expected, URI file, StorageInterface storageInterface) {
-        assertThat("Result file should exist", storageInterface.exists(null, file), is(true));
-        try (InputStream streamResult = storageInterface.get(null, file)) {
+        assertThat("Result file should exist", storageInterface.exists(null, null, file), is(true));
+        try (InputStream streamResult = storageInterface.get(null, null, file)) {
             String result = new String(streamResult.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n");
 
             System.out.println("Got :\n" + result);

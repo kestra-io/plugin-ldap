@@ -7,47 +7,28 @@ import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.Entry;
 import com.unboundid.ldap.sdk.Modification;
 import com.unboundid.ldap.sdk.ModificationType;
-import com.unboundid.ldif.LDIFAddChangeRecord;
-import com.unboundid.ldif.LDIFDeleteChangeRecord;
-import com.unboundid.ldif.LDIFModifyChangeRecord;
-import com.unboundid.ldif.LDIFModifyDNChangeRecord;
-import com.unboundid.ldif.LDIFRecord;
-import com.unboundid.ldif.LDIFWriter;
-
+import com.unboundid.ldif.*;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
-
 import io.micronaut.core.annotation.Nullable;
-
 import io.swagger.v3.oas.annotations.media.Schema;
-
 import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import lombok.Builder.Default;
+import lombok.experimental.SuperBuilder;
+import org.slf4j.Logger;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-
 import java.net.URI;
-
 import java.util.ArrayList;
 import java.util.List;
-
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Builder.Default;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
-import lombok.experimental.SuperBuilder;
-
-import org.slf4j.Logger;
 
 @SuperBuilder
 @ToString
@@ -149,9 +130,9 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
     @Schema(
         title = "URI(s) of file(s) containing ION entries."
     )
-    @PluginProperty(dynamic = true)
+
     @NotNull
-    private List<String> inputs;
+    private Property<List<String>> inputs;
 
     /**
      * OUTPUTS ------------------------------------------------------------------------------------------------------------------- //
@@ -201,14 +182,15 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
         this.logger = runContext.logger();
         List<URI> storedResults = new ArrayList<>();
 
-        for (String path : this.inputs) {
+        var inputList = runContext.render(this.inputs).asList(String.class);
+        for (String path : inputList) {
             try {
                 storedResults.add(transformIonToLdif(path, runContext));
             } catch (Exception e) {
                 this.logger.error(e.getMessage());
             }
         }
-        if (!this.inputs.isEmpty() && storedResults.isEmpty()) {
+        if (!inputList.isEmpty() && storedResults.isEmpty()) {
             throw new Exception("Not a single file has been translated.");
         }
         runContext.metric(Counter.of("entries.found", this.found, "origin", "Ionise"));

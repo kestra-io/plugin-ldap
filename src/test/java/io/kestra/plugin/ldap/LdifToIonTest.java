@@ -1,16 +1,15 @@
 package io.kestra.plugin.ldap;
 
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
-
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import org.junit.jupiter.api.Test;
 
 @KestraTest
 public class LdifToIonTest {
@@ -103,7 +102,9 @@ public class LdifToIonTest {
         /////////////////////////
 
         RunContext runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
-        LdifToIon task = LdifToIon.builder().inputs(Commons.makeKestraPebblesForXFiles(inputs.size())).build();
+        LdifToIon task = LdifToIon.builder()
+            .inputs(Property.of(Commons.makeKestraPebblesForXFiles(inputs.size())))
+            .build();
         LdifToIon.Output runOutput = task.run(runContext);
         Commons.assertFilesEq(runOutput.getUrisList(), expectations, storageInterface);
     }

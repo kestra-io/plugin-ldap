@@ -7,37 +7,24 @@ import com.unboundid.ldap.sdk.ResultCode;
 import com.unboundid.ldif.LDIFChangeRecord;
 import com.unboundid.ldif.LDIFException;
 import com.unboundid.ldif.LDIFReader;
-
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.executions.metrics.Timer;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
-
 import io.swagger.v3.oas.annotations.media.Schema;
-
 import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import lombok.Builder.Default;
+import lombok.experimental.SuperBuilder;
+import org.slf4j.Logger;
 
 import java.io.IOException;
-
 import java.time.Duration;
-
-import java.util.List;
 import java.util.ArrayList;
-
-import lombok.AccessLevel;
-import lombok.Builder.Default;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
-
-import lombok.experimental.SuperBuilder;
-
-import org.slf4j.Logger;
+import java.util.List;
 
 @SuperBuilder
 @ToString
@@ -56,7 +43,7 @@ import org.slf4j.Logger;
             code = """
                 id: ldap_modify
                 namespace: company.team
-                
+
                 tasks:
                   - id: modify
                     type: io.kestra.plugin.ldap.Modify
@@ -79,9 +66,9 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
         title = "URI(s) of input file(s)",
         description = "List of URI(s) of file(s) containing LDIF formatted entries to modify into LDAP. Entries must provide a changeType field."
     )
-    @PluginProperty(dynamic = true)
+
     @NotNull
-    private List<String> inputs;
+    private Property<List<String>> inputs;
 
     /**
      * CODE ------------------------------------------------------------------------------------------------------------------- //
@@ -110,7 +97,7 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
         this.logger = runContext.logger();
 
         try (LDAPConnection connection = this.getLdapConnection(runContext)) {
-            for (String inputUri : inputs) {
+            for (String inputUri : runContext.render(this.inputs).asList(String.class)) {
                 try (LDIFReader reader = Utils.getLDIFReaderFromUri(inputUri, runContext)) {
                     processEntries(reader, connection);
                 } catch (Exception e) {

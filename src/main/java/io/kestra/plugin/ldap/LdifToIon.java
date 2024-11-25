@@ -4,52 +4,32 @@ import com.amazon.ion.IonSystem;
 import com.amazon.ion.IonType;
 import com.amazon.ion.IonWriter;
 import com.amazon.ion.system.IonSystemBuilder;
-
 import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.ChangeType;
 import com.unboundid.ldap.sdk.Entry;
 import com.unboundid.ldap.sdk.Modification;
-import com.unboundid.ldif.LDIFAddChangeRecord;
-import com.unboundid.ldif.LDIFChangeRecord;
-import com.unboundid.ldif.LDIFException;
-import com.unboundid.ldif.LDIFModifyChangeRecord;
-import com.unboundid.ldif.LDIFModifyDNChangeRecord;
-import com.unboundid.ldif.LDIFReader;
-import com.unboundid.ldif.LDIFRecord;
-
+import com.unboundid.ldif.*;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
-
 import io.swagger.v3.oas.annotations.media.Schema;
-
 import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import lombok.Builder.Default;
+import lombok.experimental.SuperBuilder;
+import org.slf4j.Logger;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-
 import java.net.URI;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
-import lombok.Builder.Default;
-import lombok.experimental.SuperBuilder;
-
-import org.slf4j.Logger;
 
 @SuperBuilder
 @ToString
@@ -68,13 +48,13 @@ import org.slf4j.Logger;
             code = """
                 id: ldap_ldif_to_ion
                 namespace: company.team
-                
+
                 inputs:
                   - id: file1
                     type: FILE
                   - id: file2
                     type: FILE
-                
+
                 tasks:
                   - id: ldif_to_ion
                     type: io.kestra.plugin.ldap.LdifToIon
@@ -150,9 +130,9 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
     @Schema(
         title = "URI(s) of file(s) containing LDIF entries."
     )
-    @PluginProperty(dynamic = true)
+
     @NotNull
-    private List<String> inputs;
+    private Property<List<String>> inputs;
 
     /**
      * OUTPUTS ------------------------------------------------------------------------------------------------------------------- //
@@ -190,14 +170,15 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
         this.logger = runContext.logger();
         List<URI> storedResults = new ArrayList<>();
 
-        for (String path : this.inputs) {
+        var inputList = runContext.render(this.inputs).asList(String.class);
+        for (String path : inputList) {
             try {
                 storedResults.add(transformLdifToIon(path, runContext));
             } catch (Exception e) {
                  this.logger.error(e.getMessage());
             }
         }
-        if (!this.inputs.isEmpty() && storedResults.isEmpty()) {
+        if (!inputList.isEmpty() && storedResults.isEmpty()) {
             throw new Exception("Not a single file has been translated.");
         }
         runContext.metric(Counter.of("entries.found", this.entriesFound, "origin", "LdifToIon"));

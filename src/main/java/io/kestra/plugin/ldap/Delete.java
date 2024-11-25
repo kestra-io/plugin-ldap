@@ -1,43 +1,26 @@
 package io.kestra.plugin.ldap;
 
-import com.unboundid.ldap.sdk.DeleteRequest;
-import com.unboundid.ldap.sdk.Entry;
-import com.unboundid.ldap.sdk.LDAPConnection;
-import com.unboundid.ldap.sdk.LDAPException;
-import com.unboundid.ldap.sdk.LDAPResult;
-import com.unboundid.ldap.sdk.ResultCode;
+import com.unboundid.ldap.sdk.*;
 import com.unboundid.ldif.LDIFException;
 import com.unboundid.ldif.LDIFReader;
-
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.executions.metrics.Timer;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
-
 import io.swagger.v3.oas.annotations.media.Schema;
-
 import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import lombok.Builder.Default;
+import lombok.experimental.SuperBuilder;
+import org.slf4j.Logger;
 
 import java.io.IOException;
-
 import java.time.Duration;
-
 import java.util.ArrayList;
 import java.util.List;
-
-import lombok.AccessLevel;
-import lombok.Builder.Default;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
-import lombok.experimental.SuperBuilder;
-
-import org.slf4j.Logger;
 
 @SuperBuilder
 @ToString
@@ -55,7 +38,7 @@ import org.slf4j.Logger;
             code = """
                 id: ldap_delete
                 namespace: company.team
-                
+
                 tasks:
                   - id: delete
                     type: io.kestra.plugin.ldap.Delete
@@ -79,9 +62,8 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
         title = "File(s) URI(s) containing Distinguished-Name(s)",
         description = "Targeted DN(s) in the LDAP."
     )
-    @PluginProperty(dynamic = true)
     @NotNull
-    private List<String> inputs;
+    private Property<List<String>> inputs;
 
     /**
      * CODE ------------------------------------------------------------------------------------------------------------------- //
@@ -110,7 +92,7 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
         this.logger = runContext.logger();
 
         try (LDAPConnection connection = this.getLdapConnection(runContext)) {
-            for (String file : inputs) {
+            for (String file : runContext.render(inputs).asList(String.class)) {
                 try (LDIFReader reader = Utils.getLDIFReaderFromUri(file, runContext)) {
                     processEntries(reader, connection);
                 } catch (Exception e) {

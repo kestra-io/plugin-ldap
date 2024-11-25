@@ -1,28 +1,26 @@
 package io.kestra.plugin.ldap;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-
-import static org.junit.jupiter.api.Assertions.fail;
-
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.utility.DockerImageName;
-
 import com.google.common.collect.ImmutableMap;
-
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.utils.IdUtils;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.utility.DockerImageName;
 
-import java.util.List;
-import java.util.HashMap;
-import java.util.Map;
-import java.net.URI;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Provides common tools for the ldapManager plugin testing.
@@ -39,8 +37,8 @@ final class Commons {
      * @value [1] -> SSL secure port
      */
     public static final Integer[] EXPOSED_PORTS = {10389, 10636};
-    public static final String USER = "cn=admin,dc=planetexpress,dc=com";
-    public static final String PASS = "GoodNewsEveryone";
+    public static final Property<String> USER = Property.of("cn=admin,dc=planetexpress,dc=com");
+    public static final Property<String> PASS = Property.of("GoodNewsEveryone");
 
     /**
      * Insert provided contents in separated files in the Kestra storage.
@@ -120,14 +118,13 @@ final class Commons {
      */
     public static Search makeSearchTask(String filter, String baseDn, List<String> attributes, GenericContainer<?> ldap) {
         return Search.builder()
-            .hostname(ldap.getHost())
-            .port(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
+            .hostname(Property.of(ldap.getHost()))
+            .port(Property.of(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[0]))))
             .userDn(Commons.USER)
             .password(Commons.PASS)
-
-            .baseDn(baseDn)
-            .filter(filter)
-            .attributes(attributes)
+            .baseDn(Property.of(baseDn))
+            .filter(Property.of(filter))
+            .attributes(Property.of(attributes))
 
             .build();
     }

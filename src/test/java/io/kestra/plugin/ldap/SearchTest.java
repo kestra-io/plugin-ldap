@@ -1,5 +1,10 @@
 package io.kestra.plugin.ldap;
 
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.runners.RunContext;
+import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.storages.StorageInterface;
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -7,13 +12,8 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.testcontainers.containers.GenericContainer;
 
-import io.kestra.core.junit.annotations.KestraTest;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.storages.StorageInterface;
-import jakarta.inject.Inject;
-import java.util.List;
 import java.util.Arrays;
+import java.util.List;
 
 
 @KestraTest
@@ -29,7 +29,7 @@ public class SearchTest {
 
     @SuppressWarnings("resource")
     @BeforeAll
-    private void prepare() {
+    public void prepare() {
         ldap = new GenericContainer<>(Commons.LDAP_IMAGE).withExposedPorts(Commons.EXPOSED_PORTS);
         ldap.start();
     }

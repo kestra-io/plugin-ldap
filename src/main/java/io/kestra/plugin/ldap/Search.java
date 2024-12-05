@@ -1,41 +1,23 @@
 package io.kestra.plugin.ldap;
 
-import com.unboundid.ldap.sdk.LDAPConnection;
-import com.unboundid.ldap.sdk.LDAPException;
-import com.unboundid.ldap.sdk.ResultCode;
-import com.unboundid.ldap.sdk.SearchRequest;
-import com.unboundid.ldap.sdk.SearchResult;
-import com.unboundid.ldap.sdk.SearchResultEntry;
-import com.unboundid.ldap.sdk.SearchScope;
-
+import com.unboundid.ldap.sdk.*;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.executions.metrics.Timer;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
+import org.slf4j.Logger;
 
 import java.io.File;
-
 import java.net.URI;
-
 import java.time.Duration;
-
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-
-import lombok.Builder.Default;
-import lombok.Builder;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
-import lombok.experimental.SuperBuilder;
-
-import org.slf4j.Logger;
 
 @SuperBuilder
 @ToString
@@ -84,9 +66,8 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
         title = "Filter",
         description = "Filter for the search in the LDAP."
     )
-    @PluginProperty(dynamic = true)
-    @Default
-    private String filter = "(objectclass=*)";
+    @Builder.Default
+    private Property<String> filter = Property.of("(objectclass=*)");
 
     @Schema(
         title = "Attributes",
@@ -99,17 +80,15 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
                 `--> This special attribute canno't be combined with other attributes and the search will ignore everything else.
             """
     )
-    @PluginProperty
-    @Default
-    private List<String> attributes = Arrays.asList(SearchRequest.ALL_USER_ATTRIBUTES);
+    @Builder.Default
+    private Property<List<String> >attributes = Property.of(Collections.singletonList(SearchRequest.ALL_USER_ATTRIBUTES));
 
     @Schema(
         title = "Base DN",
         description = "Base DN target in the LDAP."
     )
-    @PluginProperty(dynamic = true)
-    @Default
-    private String baseDn = "ou=system";
+    @Builder.Default
+    private Property<String> baseDn = Property.of("ou=system");
 
     @Schema(
         title = "SUB",
@@ -120,9 +99,8 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
             SUB -- Indicates that the base entry itself and any subordinate entries (to any depth) should be considered.
             SUBORDINATE_SUBTREE -- Indicates that any subordinate entries (to any depth) below the entry specified by the base DN should be considered, but the base entry itself should not be considered, as described in draft-sermersheim-ldap-subordinate-scope."""
     )
-    @Default
-    @PluginProperty
-    private SearchScope sub = SearchScope.SUB;
+    @Builder.Default
+    private Property<SearchScope> sub = Property.of(SearchScope.SUB);
 
     /**
      * OUTPUTS ------------------------------------------------------------------------------------------------------------------- //
@@ -152,10 +130,13 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
         Long searchTime = 0L;
 
         try (LDAPConnection connection = this.getLdapConnection(runContext)) {
-            filter = runContext.render(filter).replaceAll("\n\\s*", "");
+            var renderedFilter = runContext.render(filter).asList(String.class).replaceAll("\n\\s*", "");
+            var renderedAttributes = runContext.render(attributes).asList(String.class);
             SearchRequest request = new SearchRequest(
-                runContext.render(baseDn), sub, filter,
-                attributes.contains("0.0") ? SearchRequest.REQUEST_ATTRS_DEFAULT : attributes.toArray(new String[0])
+                runContext.render(baseDn).as(String.class).orElseThrow(),
+                runContext.render(sub).as(SearchScope.class).orElseThrow(),
+                renderedFilter,
+                renderedAttributes.contains("0.0") ? SearchRequest.REQUEST_ATTRS_DEFAULT : renderedAttributes.toArray(new String[0])
             );
             Long startTime = System.currentTimeMillis();
             SearchResult result = connection.search(request);

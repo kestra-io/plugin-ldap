@@ -1,16 +1,15 @@
 package io.kestra.plugin.ldap;
 
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.runners.RunContext;
-
-import java.net.URI;
-import java.io.IOException;
-
 import com.amazon.ion.IonException;
 import com.amazon.ion.IonReader;
 import com.amazon.ion.IonSystem;
 import com.amazon.ion.system.IonSystemBuilder;
 import com.unboundid.ldif.LDIFReader;
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.runners.RunContext;
+
+import java.io.IOException;
+import java.net.URI;
 
 /**
  * Provides common tools for the ldapManager plugin.

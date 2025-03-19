@@ -49,7 +49,7 @@ dependencies {
     compileOnly'org.slf4j:slf4j-api:2.0.13'
 
     // libs included in the final jar
-    implementation group: 'com.amazon.ion', name: 'ion-java', version: '1.11.9'
+    implementation group: 'com.amazon.ion', name: 'ion-java', version: '1.11.10'
     implementation group: 'com.unboundid', name: 'unboundid-ldapsdk', version: '7.0.2'
 }
 
@@ -100,7 +100,7 @@ dependencies {
     testImplementation "org.hamcrest:hamcrest"
     testImplementation "org.hamcrest:hamcrest-library"
 
-    testImplementation group: 'org.testcontainers', name: 'testcontainers', version: '1.20.4'
+    testImplementation group: 'org.testcontainers', name: 'testcontainers', version: '1.20.6'
 }
 
 /**********************************************************************************************************************\
@@ -119,7 +119,7 @@ configurations {
 }
 
 dependencies {
-    agent "org.aspectj:aspectjweaver:1.9.22.1"
+    agent "org.aspectj:aspectjweaver:1.9.23"
 }
 
 test {

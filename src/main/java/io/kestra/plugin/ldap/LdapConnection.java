@@ -28,7 +28,7 @@ import org.slf4j.Logger;
 public abstract class LdapConnection extends Task {
     @Schema(
         title = "Hostname",
-        description = "Hostname for connection.x"
+        description = "Hostname for connection."
     )
     @PluginProperty(dynamic = true)
     @NotNull

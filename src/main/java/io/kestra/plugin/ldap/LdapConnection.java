@@ -123,7 +123,7 @@ public abstract class LdapConnection extends Task {
                         (kdcProperty == null && realmProperty != null) ||
                         (kdcProperty != null && realmProperty == null)
                     ) {
-                        throw new Exception("Property kdc and realm both must be set or neither must be set.");
+                        throw new IllegalArgumentException("Property kdc and realm both must be set or neither must be set.");
                     }
 
                     if (kdcProperty != null) {
@@ -136,7 +136,7 @@ public abstract class LdapConnection extends Task {
                     bindRequest = new GSSAPIBindRequest(gssapiProperties);
                     break;
                 default:
-                    throw new Exception(String.format("Invalid authentication method \"%s\".", authMethodProperty));
+                    throw new IllegalArgumentException(String.format("Invalid authentication method \"%s\".", authMethodProperty));
             }
             connection.bind(bindRequest);
             return connection;

@@ -60,7 +60,7 @@ public abstract class LdapConnection extends Task {
 
     @Schema(
         title = "Authentication method",
-        description = "Authentication method to use with LDAP server.",
+        description = "Authentication method to use with the LDAP server.",
         allowableValues = {"simple", "gssapi"}
     )
     @PluginProperty(dynamic = true)

@@ -45,7 +45,7 @@ import org.slf4j.Logger;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Modify entries in LDAP.",
+    title = "Modify entries in an LDAP server.",
     description = "Modify, Delete or Add attributes or DNs following LDIF changeType fields of each entries provided."
 )
 @Plugin(

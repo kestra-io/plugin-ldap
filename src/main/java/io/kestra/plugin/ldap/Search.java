@@ -43,7 +43,7 @@ import org.slf4j.Logger;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Retrieves entries in LDAP.",
+    title = "Retrieve entries from an LDAP server.",
     description = "Search and list entries based on a filter list for each base DN target."
 )
 @Plugin(

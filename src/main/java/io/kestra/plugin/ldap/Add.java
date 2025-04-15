@@ -44,7 +44,7 @@ import org.slf4j.Logger;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Insert entries in LDAP.",
+    title = "Insert entries to an LDAP server.",
     description = "Creates a new entry, if allowed, for each line of provided LDIF files."
 )
 @Plugin(

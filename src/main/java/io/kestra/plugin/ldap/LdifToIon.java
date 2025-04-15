@@ -57,7 +57,7 @@ import org.slf4j.Logger;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Ionise LDIF entries.",
+    title = "Convert LDIF entries from an LDAP server into an ION file.",
     description = "Transform .ldif files to .ion ones."
 )
 @Plugin(

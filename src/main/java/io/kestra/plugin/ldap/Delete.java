@@ -45,7 +45,7 @@ import org.slf4j.Logger;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Remove entries in LDAP.",
+    title = "Remove entries from an LDAP server.",
     description = "Remove entries based on a targeted DN list."
 )
 @Plugin(

@@ -7,7 +7,10 @@ import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPException;
 import com.unboundid.ldap.sdk.SimpleBindRequest;
 
+import com.unboundid.util.ssl.SSLUtil;
+import com.unboundid.util.ssl.TrustAllTrustManager;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.http.client.configurations.SslOptions;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
@@ -21,6 +24,9 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 import org.slf4j.Logger;
+
+import javax.net.ssl.SSLSocketFactory;
+import java.security.GeneralSecurityException;
 
 @SuperBuilder
 @Getter
@@ -88,19 +94,26 @@ public abstract class LdapConnection extends Task {
     @PluginProperty(dynamic = true)
     protected String realm;
 
+    @Schema(
+        title = "SSL Configuration",
+        description = "Configure SSL/LDAPS connection parameters."
+    )
+    protected SslOptions sslOptions;
+
     /**
      * Opens a connection with user provided informations.
+     *
      * @param runContext : A context that may evaluate pebble expressions regarding the connection informations.
      * @return A new LDAPConnection to perform action with the LDAP server.
      */
     protected LDAPConnection getLdapConnection(RunContext runContext) throws Exception, LDAPException, IllegalVariableEvaluationException {
         Logger logger = runContext.logger();
+
         String authMethodProperty = runContext.render(authMethod);
+        final boolean trustAllCertificates = sslOptions != null && runContext.render(sslOptions.getInsecureTrustAllCertificates()).as(Boolean.class).orElse(false);
+
         try {
-            LDAPConnection connection = new LDAPConnection(
-                runContext.render(hostname),
-                Integer.parseInt(runContext.render(port))
-            );
+            LDAPConnection connection = createLdapConnection(hostname, Integer.parseInt(runContext.render(port)), trustAllCertificates);
             BindRequest bindRequest;
 
             switch (authMethodProperty) {
@@ -121,7 +134,7 @@ public abstract class LdapConnection extends Task {
 
                     if (
                         (kdcProperty == null && realmProperty != null) ||
-                        (kdcProperty != null && realmProperty == null)
+                            (kdcProperty != null && realmProperty == null)
                     ) {
                         throw new IllegalArgumentException("Property kdc and realm both must be set or neither must be set.");
                     }
@@ -144,5 +157,19 @@ public abstract class LdapConnection extends Task {
             logger.error("LDAP connextion error: {}", e.getResultString());
             throw e;
         }
+    }
+
+
+    public LDAPConnection createLdapConnection(String hostname, int port, boolean trustAllCertificates) throws LDAPException, GeneralSecurityException {
+        LDAPConnection connection;
+
+        if (trustAllCertificates) {
+            SSLUtil sslUtil = new SSLUtil(new TrustAllTrustManager());
+            SSLSocketFactory sslSocketFactory = sslUtil.createSSLSocketFactory();
+            connection = new LDAPConnection(sslSocketFactory, hostname, port);
+        } else {
+            connection = new LDAPConnection(hostname, port);
+        }
+        return connection;
     }
 }

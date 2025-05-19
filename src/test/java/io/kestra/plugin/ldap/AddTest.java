@@ -1,6 +1,8 @@
 package io.kestra.plugin.ldap;
 
+import io.kestra.core.http.client.configurations.SslOptions;
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
@@ -92,5 +94,43 @@ public class AddTest {
         Search.Output search_result = check_task.run(runContext);
         System.out.println("CAUTION !! THIS TEST DEPENDS HEAVILY ON THE SEARCH TASK, CHECK THAT ALL --SEARCH TESTS-- PASSED.");
         Commons.assertResult(String.join("\n", inputs), search_result.getUri(), storageInterface);
+    }
+
+    @Test
+    void addAndSearch_usingSsl() throws Exception {
+        List<String> inputs = new ArrayList<>();
+        String input = """
+        dn: cn=Complete SSL User,ou=people,dc=planetexpress,dc=com
+        objectClass: inetOrgPerson
+        cn: Complete SSL User
+        sn: CompleteSslUser
+        description: User added and verified entirely over SSL
+        employeeType: CEO
+        givenName: SecureCore
+        mail: complete.ssl.ceo@planetexpress.com
+        ou: Executive Wing
+        uid: ceoSecureUser
+        userPassword: ceoSecurePassword
+        """;
+        inputs.add(input);
+
+        RunContext runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
+
+        Add addTask = makeSslTask(Commons.makeKestraPebblesForXFiles(inputs.size()));
+        addTask.run(runContext);
+        Search check_task = Commons.makeSslSearchTask("(sn=CompleteSslUser)", "dc=planetexpress,dc=com", new ArrayList<String>(), ldap);
+        Search.Output searchResult = check_task.run(runContext);
+        Commons.assertResult(input, searchResult.getUri(), storageInterface);
+    }
+
+    private Add makeSslTask(List<String> files) {
+        return Add.builder()
+            .hostname(ldap.getHost())
+            .port(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[1])))
+            .userDn(Commons.USER)
+            .password(Commons.PASS)
+            .sslOptions(SslOptions.builder().insecureTrustAllCertificates(Property.of(true)).build())
+            .inputs(files)
+            .build();
     }
 }

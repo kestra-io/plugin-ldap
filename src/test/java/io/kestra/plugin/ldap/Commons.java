@@ -5,6 +5,8 @@ import static org.hamcrest.Matchers.is;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
+import io.kestra.core.http.client.configurations.SslOptions;
+import io.kestra.core.models.property.Property;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -129,6 +131,19 @@ final class Commons {
             .filter(filter)
             .attributes(attributes)
 
+            .build();
+    }
+
+    public static Search makeSslSearchTask(String filter, String baseDn, List<String> attributes, GenericContainer<?> ldap) {
+        return Search.builder()
+            .hostname(ldap.getHost())
+            .userDn(Commons.USER)
+            .password(Commons.PASS)
+            .baseDn(baseDn)
+            .filter(filter)
+            .attributes(attributes)
+            .port(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[1])))
+            .sslOptions(SslOptions.builder().insecureTrustAllCertificates(Property.of(true)).build())
             .build();
     }
 

@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import io.kestra.core.http.client.configurations.SslOptions;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.tenant.TenantService;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -57,7 +58,7 @@ final class Commons {
             URI filePath;
             try {
                 filePath = storageInterface.put(
-                    null,
+                    TenantService.MAIN_TENANT,
                     null,
                     URI.create("/" + IdUtils.create() + extension),
                     new ByteArrayInputStream(content.getBytes())
@@ -80,7 +81,7 @@ final class Commons {
      * @param storageInterface : The StorageInterface that should contain the file.
      */
     public static void assertResult(String expected, URI file, StorageInterface storageInterface) {
-        assertThat("Result file should exist", storageInterface.exists(null, null, file), is(true));
+        assertThat("Result file should exist", storageInterface.exists(TenantService.MAIN_TENANT, null, file), is(true));
         try (InputStream streamResult = storageInterface.get(null, null, file)) {
             String result = new String(streamResult.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n");
 

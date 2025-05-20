@@ -82,7 +82,7 @@ final class Commons {
      */
     public static void assertResult(String expected, URI file, StorageInterface storageInterface) {
         assertThat("Result file should exist", storageInterface.exists(TenantService.MAIN_TENANT, null, file), is(true));
-        try (InputStream streamResult = storageInterface.get(null, null, file)) {
+        try (InputStream streamResult = storageInterface.get(TenantService.MAIN_TENANT, null, file)) {
             String result = new String(streamResult.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n");
 
             System.out.println("Got :\n" + result);

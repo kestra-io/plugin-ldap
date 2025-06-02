@@ -144,7 +144,7 @@ final class Commons {
             .filter(filter)
             .attributes(attributes)
             .port(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[1])))
-            .sslOptions(SslOptions.builder().insecureTrustAllCertificates(Property.of(true)).build())
+            .sslOptions(SslOptions.builder().insecureTrustAllCertificates(Property.ofValue(true)).build())
             .build();
     }
 

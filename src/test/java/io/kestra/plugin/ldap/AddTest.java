@@ -129,7 +129,7 @@ public class AddTest {
             .port(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[1])))
             .userDn(Commons.USER)
             .password(Commons.PASS)
-            .sslOptions(SslOptions.builder().insecureTrustAllCertificates(Property.of(true)).build())
+            .sslOptions(SslOptions.builder().insecureTrustAllCertificates(Property.ofValue(true)).build())
             .inputs(files)
             .build();
     }

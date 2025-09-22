@@ -113,7 +113,11 @@ public abstract class LdapConnection extends Task {
         final boolean trustAllCertificates = sslOptions != null && runContext.render(sslOptions.getInsecureTrustAllCertificates()).as(Boolean.class).orElse(false);
 
         try {
-            LDAPConnection connection = createLdapConnection(hostname, Integer.parseInt(runContext.render(port)), trustAllCertificates);
+            LDAPConnection connection = createLdapConnection(
+                runContext.render(hostname),
+                Integer.parseInt(runContext.render(port)),
+                trustAllCertificates
+            );
             BindRequest bindRequest;
 
             switch (authMethodProperty) {

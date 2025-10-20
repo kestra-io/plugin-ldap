@@ -10,6 +10,7 @@ import com.unboundid.ldif.LDIFReader;
 
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.executions.metrics.Timer;
 import io.kestra.core.models.tasks.RunnableTask;
@@ -68,6 +69,23 @@ import org.slf4j.Logger;
                     port: 18060
                 """
         )
+    },
+    metrics = {
+        @Metric(
+            name = "modifications.requested",
+            type = Counter.TYPE,
+            description = "The total number of modification requests made."
+        ),
+        @Metric(
+            name = "modifications.done",
+            type = Counter.TYPE,
+            description = "The total number of successful modifications on the LDAP server."
+        ),
+        @Metric(
+            name = "modifications.mean.time",
+            type = Timer.TYPE,
+            description = "The mean duration of LDAP modifications in milliseconds."
+        )
     }
 )
 public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
@@ -125,7 +143,7 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
 
         if (!this.modificationsTimes.isEmpty()) {
             Long meanTime = this.modificationsTimes.stream().mapToLong(Long::longValue).sum() / this.modificationsDone;
-            runContext.metric(Timer.of("modifications.meanTime", Duration.ofMillis(meanTime), "origin", "input"));
+            runContext.metric(Timer.of("modifications.mean.time", Duration.ofMillis(meanTime), "origin", "input"));
         }
         return new VoidOutput();
     }

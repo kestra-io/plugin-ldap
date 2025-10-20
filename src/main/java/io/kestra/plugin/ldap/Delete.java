@@ -11,6 +11,7 @@ import com.unboundid.ldif.LDIFReader;
 
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.executions.metrics.Timer;
 import io.kestra.core.models.tasks.RunnableTask;
@@ -68,7 +69,24 @@ import org.slf4j.Logger;
                     port: 15060
                 """
         )
-    }
+    },
+    metrics = {
+    @Metric(
+        name = "deletions.requested",
+        type = Counter.TYPE,
+        description = "The total number of deletion requests made."
+    ),
+    @Metric(
+        name = "deletions.done",
+        type = Counter.TYPE,
+        description = "The total number of successful deletions from the LDAP server."
+    ),
+    @Metric(
+        name = "deletions.mean.time",
+        type = Timer.TYPE,
+        description = "The mean duration of LDAP deletions in milliseconds."
+    )
+}
 )
 public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
     /**
@@ -125,7 +143,7 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
         runContext.metric(Counter.of("deletions.done", this.deletionsDone, "origin", "delete"));
         if (!this.deletionsTimes.isEmpty()) {
             Long meanTime = this.deletionsTimes.stream().mapToLong(Long::longValue).sum() / this.deletionsDone;
-            runContext.metric(Timer.of("deletions.meanTime", Duration.ofMillis(meanTime), "origin", "delete"));
+            runContext.metric(Timer.of("deletions.mean.time", Duration.ofMillis(meanTime), "origin", "delete"));
         }
         return new VoidOutput();
     }

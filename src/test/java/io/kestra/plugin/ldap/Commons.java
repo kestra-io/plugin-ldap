@@ -58,10 +58,10 @@ final class Commons {
             URI filePath;
             try {
                 filePath = storageInterface.put(
-                    TenantService.MAIN_TENANT,
-                    null,
-                    URI.create("/" + IdUtils.create() + extension),
-                    new ByteArrayInputStream(content.getBytes())
+                        TenantService.MAIN_TENANT,
+                        null,
+                        URI.create("/" + IdUtils.create() + extension),
+                        new ByteArrayInputStream(content.getBytes())
                 );
                 kestraPaths.put("file" + idx, filePath.toString());
                 idx++;
@@ -123,29 +123,31 @@ final class Commons {
      */
     public static Search makeSearchTask(String filter, String baseDn, List<String> attributes, GenericContainer<?> ldap) {
         return Search.builder()
-            .hostname(ldap.getHost())
-            .port(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
-            .userDn(Commons.USER)
-            .password(Commons.PASS)
+                .hostname(ldap.getHost())
+                .port(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
+                .userDn(Commons.USER)
+                .password(Commons.PASS)
 
-            .baseDn(baseDn)
-            .filter(filter)
-            .attributes(attributes)
+                .baseDn(Property.ofValue(baseDn))
+                .filter(Property.ofValue(filter))
+                .attributes(Property.ofValue(attributes))
+                .attributes(Property.ofValue(attributes))
 
-            .build();
+                .build();
     }
 
     public static Search makeSslSearchTask(String filter, String baseDn, List<String> attributes, GenericContainer<?> ldap) {
         return Search.builder()
-            .hostname(ldap.getHost())
-            .userDn(Commons.USER)
-            .password(Commons.PASS)
-            .baseDn(baseDn)
-            .filter(filter)
-            .attributes(attributes)
-            .port(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[1])))
-            .sslOptions(SslOptions.builder().insecureTrustAllCertificates(Property.ofValue(true)).build())
-            .build();
+                .hostname(ldap.getHost())
+                .userDn(Commons.USER)
+                .password(Commons.PASS)
+                .baseDn(Property.ofValue(baseDn))
+                .filter(Property.ofValue(filter))
+                .attributes(Property.ofValue(attributes))
+                .attributes(Property.ofValue(attributes))
+                .port(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[1])))
+                .sslOptions(SslOptions.builder().insecureTrustAllCertificates(Property.ofValue(true)).build())
+                .build();
     }
 
     /**

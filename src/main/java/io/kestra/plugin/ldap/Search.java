@@ -12,6 +12,7 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.executions.metrics.Timer;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 
@@ -25,6 +26,7 @@ import java.time.Duration;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import lombok.Builder.Default;
@@ -84,9 +86,9 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
         title = "Filter",
         description = "Filter for the search in the LDAP."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty
     @Default
-    private String filter = "(objectclass=*)";
+    private Property<String> filter = Property.ofValue("(objectclass=*)");
 
     @Schema(
         title = "Attributes",
@@ -101,15 +103,15 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
     )
     @PluginProperty
     @Default
-    private List<String> attributes = Arrays.asList(SearchRequest.ALL_USER_ATTRIBUTES);
+    private Property<List<String>> attributes = Property.ofValue(Collections.singletonList(SearchRequest.ALL_USER_ATTRIBUTES));
 
     @Schema(
         title = "Base DN",
         description = "Base DN target in the LDAP."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty
     @Default
-    private String baseDn = "ou=system";
+    private Property<String> baseDn = Property.ofValue("ou=system");
 
     @Schema(
         title = "SUB",
@@ -148,14 +150,18 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
         List<String> results = new ArrayList<>();
         URI storedResults = null;
 
+        String rFilter = Property.as(filter, runContext, String.class);
+        List<String> rAttributes = Property.asList(attributes, runContext, String.class);
+        String rBaseDn = Property.as(baseDn, runContext, String.class);
+
         Integer entriesFound = 0;
         Long searchTime = 0L;
 
         try (LDAPConnection connection = this.getLdapConnection(runContext)) {
-            filter = runContext.render(filter).replaceAll("\n\\s*", "");
+            rFilter = rFilter.replaceAll("\n\\s*", "");
             SearchRequest request = new SearchRequest(
-                runContext.render(baseDn), sub, filter,
-                attributes.contains("0.0") ? SearchRequest.REQUEST_ATTRS_DEFAULT : attributes.toArray(new String[0])
+                rBaseDn, sub, rFilter,
+                rAttributes.contains("0.0") ? SearchRequest.REQUEST_ATTRS_DEFAULT : rAttributes.toArray(new String[0])
             );
             Long startTime = System.currentTimeMillis();
             SearchResult result = connection.search(request);

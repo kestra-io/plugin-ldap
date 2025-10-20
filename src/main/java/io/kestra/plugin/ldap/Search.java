@@ -15,6 +15,7 @@ import io.kestra.core.models.executions.metrics.Timer;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+import io.kestra.core.models.annotations.Metric;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -74,6 +75,18 @@ import org.slf4j.Logger;
                     hostname: 0.0.0.0
                     port: 15060
                 """
+        )
+    },
+    metrics = {
+        @Metric(
+            name = "entries.found",
+            type = Counter.TYPE,
+            description = "The total number of LDAP entries found by the search."
+        ),
+        @Metric(
+            name = "search.mean.time",
+            type = Timer.TYPE,
+            description = "The average time taken to complete the LDAP search."
         )
     }
 )
@@ -180,8 +193,9 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
             logger.error("LDAP error: {}", e.getResultString());
             throw e;
         }
-        runContext.metric(Counter.of("entries.found", entriesFound, "origin", "retrieve"));
-        runContext.metric(Timer.of("searche.meanTime", Duration.ofMillis(searchTime), "origin", "retrieve"));
+        runContext.metric(Counter.of("entries.found", entriesFound, "origin", "Search"));
+        runContext.metric(Timer.of("search.mean.time", Duration.ofMillis(searchTime), "origin", "Search"));
+
 
         return Output.builder()
             .uri(storedResults)

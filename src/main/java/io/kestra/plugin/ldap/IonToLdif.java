@@ -224,8 +224,8 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
         if (!this.inputs.isEmpty() && storedResults.isEmpty()) {
             throw new Exception("Not a single file has been translated.");
         }
-        runContext.metric(Counter.of("entries.found", this.found, "origin", "ionise"));
-        runContext.metric(Counter.of("entries.translated", this.count, "origin", "ionise"));
+        runContext.metric(Counter.of("entries.found", this.found, "origin", "IonToLdif"));
+        runContext.metric(Counter.of("entries.translated", this.count, "origin", "IonToLdif"));
         return Output.builder()
             .urisList(storedResults)
             .build();

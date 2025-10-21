@@ -139,11 +139,11 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
             this.logger.error("LDAP error: {}", e_l.getMessage());
         }
 
-        runContext.metric(Counter.of("deletions.requested", this.deletionRequests, "origin", "delete"));
-        runContext.metric(Counter.of("deletions.done", this.deletionsDone, "origin", "delete"));
+        runContext.metric(Counter.of("deletions.requested", this.deletionRequests, "origin", "Delete"));
+        runContext.metric(Counter.of("deletions.done", this.deletionsDone, "origin", "Delete"));
         if (!this.deletionsTimes.isEmpty()) {
             Long meanTime = this.deletionsTimes.stream().mapToLong(Long::longValue).sum() / this.deletionsDone;
-            runContext.metric(Timer.of("deletions.mean.time", Duration.ofMillis(meanTime), "origin", "delete"));
+            runContext.metric(Timer.of("deletions.mean.time", Duration.ofMillis(meanTime), "origin", "Delete"));
         }
         return new VoidOutput();
     }

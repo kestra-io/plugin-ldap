@@ -143,7 +143,7 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
 
         if (!this.modificationsTimes.isEmpty()) {
             Long meanTime = this.modificationsTimes.stream().mapToLong(Long::longValue).sum() / this.modificationsDone;
-            runContext.metric(Timer.of("modifications.mean.time", Duration.ofMillis(meanTime), "origin", "input"));
+            runContext.metric(Timer.of("modifications.mean.time", Duration.ofMillis(meanTime), "origin", "Modify"));
         }
         return new VoidOutput();
     }

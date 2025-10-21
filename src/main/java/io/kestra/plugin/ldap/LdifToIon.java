@@ -20,6 +20,7 @@ import com.unboundid.ldif.LDIFRecord;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
@@ -139,6 +140,18 @@ import org.slf4j.Logger;
             # moddn changeRecord without new superior (it is optional to specify a new superior field)
             {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:true}}
             """}
+        )
+    },
+     metrics = {
+        @Metric(
+            name = "entries.found",
+            type = Counter.TYPE,
+            description = "The total number of entries found in the LDIF file."
+        ),
+        @Metric(
+            name = "entries.translated",
+            type = Counter.TYPE,
+            description = "The total number of entries successfully translated to ION format."
         )
     }
 )

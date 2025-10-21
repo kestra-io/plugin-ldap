@@ -21,6 +21,7 @@ import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
+import io.kestra.core.models.annotations.Metric;
 
 import io.micronaut.core.annotation.Nullable;
 
@@ -139,6 +140,18 @@ import org.slf4j.Logger;
             """},
             full = true
         )
+    },
+    metrics = {
+         @Metric(
+             name = "entries.found",
+             type = Counter.TYPE,
+             description = "The total number of entries found in the input ION files."
+        ),
+        @Metric(
+            name = "entries.translated",
+            type = Counter.TYPE,
+           description = "The total number of entries successfully translated to LDIF."
+        )
     }
 )
 public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
@@ -211,8 +224,8 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
         if (!this.inputs.isEmpty() && storedResults.isEmpty()) {
             throw new Exception("Not a single file has been translated.");
         }
-        runContext.metric(Counter.of("entries.found", this.found, "origin", "Ionise"));
-        runContext.metric(Counter.of("entries.translated", this.count, "origin", "Ionise"));
+        runContext.metric(Counter.of("entries.found", this.found, "origin", "IonToLdif"));
+        runContext.metric(Counter.of("entries.translated", this.count, "origin", "IonToLdif"));
         return Output.builder()
             .urisList(storedResults)
             .build();

@@ -10,6 +10,7 @@ import com.unboundid.ldif.LDIFReader;
 
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.executions.metrics.Timer;
 import io.kestra.core.models.tasks.RunnableTask;
@@ -68,7 +69,25 @@ import org.slf4j.Logger;
                     port: 18060
                 """
         )
-    }
+    },
+    metrics = {
+    @Metric(
+        name = "additions.requested",
+        type = Counter.TYPE,
+        description = "The total number of LDIF addition requests made."
+    ),
+    @Metric(
+        name = "additions.done",
+        type = Counter.TYPE,
+        description = "The total number of successful additions to the LDAP server."
+    ),
+    @Metric(
+        name = "additions.mean.time",
+        type = Timer.TYPE,
+        description = "The mean duration of LDAP additions in milliseconds."
+    )
+}
+
 )
 public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
     /**
@@ -120,12 +139,12 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
         } catch (LDAPException e) {
             this.logger.error("LDAP error: {}", e.getResultString());
         }
-        runContext.metric(Counter.of("additions.requested", this.additionRequests, "origin", "input"));
-        runContext.metric(Counter.of("additions.done", this.additionsDone, "origin", "input"));
+        runContext.metric(Counter.of("additions.requested", this.additionRequests, "origin", "Add"));
+        runContext.metric(Counter.of("additions.done", this.additionsDone, "origin", "Add"));
 
         if (!this.additionsTimes.isEmpty()) {
             Long meanTime = this.additionsTimes.stream().mapToLong(Long::longValue).sum() / this.additionsDone;
-            runContext.metric(Timer.of("additions.meanTime", Duration.ofMillis(meanTime), "origin", "input"));
+            runContext.metric(Timer.of("additions.mean.time", Duration.ofMillis(meanTime), "origin", "Add"));
         }
         return new VoidOutput();
     }

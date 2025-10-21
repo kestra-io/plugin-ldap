@@ -144,7 +144,7 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
 
         if (!this.additionsTimes.isEmpty()) {
             Long meanTime = this.additionsTimes.stream().mapToLong(Long::longValue).sum() / this.additionsDone;
-            runContext.metric(Timer.of("additions.mean.time", Duration.ofMillis(meanTime), "origin", "input"));
+            runContext.metric(Timer.of("additions.mean.time", Duration.ofMillis(meanTime), "origin", "Add"));
         }
         return new VoidOutput();
     }

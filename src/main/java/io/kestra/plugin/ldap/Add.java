@@ -139,8 +139,8 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
         } catch (LDAPException e) {
             this.logger.error("LDAP error: {}", e.getResultString());
         }
-        runContext.metric(Counter.of("additions.requested", this.additionRequests, "origin", "input"));
-        runContext.metric(Counter.of("additions.done", this.additionsDone, "origin", "input"));
+        runContext.metric(Counter.of("additions.requested", this.additionRequests, "origin", "Add"));
+        runContext.metric(Counter.of("additions.done", this.additionsDone, "origin", "Add"));
 
         if (!this.additionsTimes.isEmpty()) {
             Long meanTime = this.additionsTimes.stream().mapToLong(Long::longValue).sum() / this.additionsDone;

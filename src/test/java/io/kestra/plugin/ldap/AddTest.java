@@ -56,11 +56,10 @@ public class AddTest {
      */
     private Add makeTask(List<String> files) {
         return Add.builder()
-            .hostname(ldap.getHost())
-            .port(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
-            .userDn(Commons.USER)
-            .password(Commons.PASS)
-
+            .hostname(Property.ofValue(ldap.getHost()))
+            .port(Property.ofValue(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[0]))))
+            .userDn(Property.ofValue(Commons.USER))
+            .password(Property.ofValue(Commons.PASS))
             .inputs(files)
 
             .build();
@@ -125,10 +124,10 @@ public class AddTest {
 
     private Add makeSslTask(List<String> files) {
         return Add.builder()
-            .hostname(ldap.getHost())
-            .port(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[1])))
-            .userDn(Commons.USER)
-            .password(Commons.PASS)
+            .hostname(Property.ofValue(ldap.getHost()))
+            .port(Property.ofValue(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[1]))))
+            .userDn(Property.ofValue(Commons.USER))
+            .password(Property.ofValue(Commons.PASS))
             .sslOptions(SslOptions.builder().insecureTrustAllCertificates(Property.ofValue(true)).build())
             .inputs(files)
             .build();

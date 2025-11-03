@@ -123,29 +123,27 @@ final class Commons {
      */
     public static Search makeSearchTask(String filter, String baseDn, List<String> attributes, GenericContainer<?> ldap) {
         return Search.builder()
-                .hostname(ldap.getHost())
-                .port(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
-                .userDn(Commons.USER)
-                .password(Commons.PASS)
-
-                .baseDn(Property.ofValue(baseDn))
-                .filter(Property.ofValue(filter))
-                .attributes(Property.ofValue(attributes))
-                .attributes(Property.ofValue(attributes))
-
-                .build();
+            .hostname(Property.ofValue(ldap.getHost()))
+            .port(Property.ofValue(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[0]))))
+            .userDn(Property.ofValue(Commons.USER))
+            .password(Property.ofValue(Commons.PASS))
+            .baseDn(Property.ofValue(baseDn))
+            .filter(Property.ofValue(filter))
+            .attributes(Property.ofValue(attributes))
+            .attributes(Property.ofValue(attributes))
+            .build();
     }
 
     public static Search makeSslSearchTask(String filter, String baseDn, List<String> attributes, GenericContainer<?> ldap) {
         return Search.builder()
-                .hostname(ldap.getHost())
-                .userDn(Commons.USER)
-                .password(Commons.PASS)
+                .hostname(Property.ofValue(ldap.getHost()))
+                .userDn(Property.ofValue(Commons.USER))
+                .password(Property.ofValue(Commons.PASS))
                 .baseDn(Property.ofValue(baseDn))
                 .filter(Property.ofValue(filter))
                 .attributes(Property.ofValue(attributes))
                 .attributes(Property.ofValue(attributes))
-                .port(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[1])))
+                .port(Property.ofValue(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[1]))))
                 .sslOptions(SslOptions.builder().insecureTrustAllCertificates(Property.ofValue(true)).build())
                 .build();
     }

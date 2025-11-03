@@ -1,6 +1,7 @@
 package io.kestra.plugin.ldap;
 
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
@@ -54,13 +55,11 @@ public class DeleteTest {
      */
     private Delete makeTask(List<String> files) {
         return Delete.builder()
-            .hostname(ldap.getHost())
-            .port(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
-            .userDn(Commons.USER)
-            .password(Commons.PASS)
-
+            .hostname(Property.ofValue(ldap.getHost()))
+            .port(Property.ofValue(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[0]))))
+            .userDn(Property.ofValue(Commons.USER))
+            .password(Property.ofValue(Commons.PASS))
             .inputs(files)
-
             .build();
     }
 

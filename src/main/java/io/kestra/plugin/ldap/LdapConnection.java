@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 
 import javax.net.ssl.SSLSocketFactory;
 import java.security.GeneralSecurityException;
+import java.util.NoSuchElementException;
 
 @SuperBuilder
 @Getter
@@ -117,8 +118,8 @@ public abstract class LdapConnection extends Task {
             switch (authMethodProperty) {
                 case "simple":
                     bindRequest = new SimpleBindRequest(
-                        runContext.render(userDn).as(String.class).orElse(null),
-                        runContext.render(password).as(String.class).orElse(null)
+                        runContext.render(userDn).as(String.class).orElseThrow(),
+                        runContext.render(password).as(String.class).orElseThrow()
                     );
                     break;
                 case "gssapi":

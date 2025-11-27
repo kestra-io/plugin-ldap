@@ -1,0 +1,8 @@
+group: io.kestra.plugin.ldap
+name: "ldap"
+title: "LDAP"
+description: "This sub-group of plugins contains tasks for handling ldap jobs."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

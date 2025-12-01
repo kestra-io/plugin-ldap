@@ -4,13 +4,16 @@ import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
-
+import io.kestra.core.tenant.TenantService;
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.Test;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @KestraTest
 public class LdifToIonTest {
@@ -106,5 +109,38 @@ public class LdifToIonTest {
         LdifToIon task = LdifToIon.builder().inputs(Commons.makeKestraPebblesForXFiles(inputs.size())).build();
         LdifToIon.Output runOutput = task.run(runContext);
         Commons.assertFilesEq(runOutput.getUrisList(), expectations, storageInterface);
+    }
+
+    @Test
+    void should_write_null_for_empty_attribute_values() throws Exception {
+        // LDIF with empty attribute value
+        String ldifInput = """
+        dn: cn=john.doe,ou=users,dc=example,dc=com
+        mail:
+        givenName: John
+        sn: Doe
+        """;
+
+        List<String> inputs = List.of(ldifInput);
+        RunContext runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
+        LdifToIon task = LdifToIon.builder().inputs(Commons.makeKestraPebblesForXFiles(inputs.size())).build();
+        LdifToIon.Output runOutput = task.run(runContext);
+
+        String ionResult;
+        try (var is = storageInterface.get(TenantService.MAIN_TENANT, null, runOutput.getUrisList().getFirst())) {
+            ionResult = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        }
+
+        // ✅ Expected behavior after fix: mail should be written as null
+        assertTrue(
+            ionResult.contains("mail:[null]"),
+            "Empty LDAP attributes should be written as null instead of empty string."
+        );
+
+        // Ensure other attributes are still serialized correctly
+        assertTrue(
+            ionResult.contains("givenName:[\"John\"]") && ionResult.contains("sn:[\"Doe\"]"),
+            "Non-empty attributes should remain unchanged."
+        );
     }
 }

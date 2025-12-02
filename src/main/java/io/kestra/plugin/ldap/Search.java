@@ -1,6 +1,8 @@
 package io.kestra.plugin.ldap;
 
+import com.unboundid.asn1.ASN1OctetString;
 import com.unboundid.ldap.sdk.*;
+import com.unboundid.ldap.sdk.controls.SimplePagedResultsControl;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
@@ -119,9 +121,32 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
 
     @Schema(
         title = "Size limit",
-        description = "Maximum number of entries to return. If set, prevents size limit exceeded."
+        description = """
+            Maximum number of entries to return.
+
+            Use this when you want to LIMIT the total number of results on purpose (sampling / safety).
+            If more entries match the filter, only the first N will be returned.
+
+            - Typical use case: you only need a subset (e.g., first 200 users).
+            - Consequence: results can be TRUNCATED.
+            """
     )
     private Property<Integer> sizeLimit;
+
+    @Schema(
+        title = "Page size",
+        description = """
+            Enable LDAP paging (RFC2696) and fetch results by chunks of this size.
+
+            Use this when you want to RETRIEVE ALL matching entries safely, even if there are more
+            than the server limit (often ~1000). The task will perform multiple paged searches until
+            all entries are collected.
+
+            - Typical use case: full export / sync of an LDAP tree.
+            - Consequence: no truncation, but potentially more requests and longer execution time.
+            """
+    )
+    private Property<Integer> pageSize;
 
     @Builder
     @Getter
@@ -143,60 +168,129 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
         List<String> rAttributes = runContext.render(this.attributes).asList(String.class);
         String rBaseDn = runContext.render(this.baseDn).as(String.class).orElse("ou=system");
         Integer rSizeLimit = runContext.render(this.sizeLimit).as(Integer.class).orElse(null);
+        Integer rPageSize = runContext.render(this.pageSize).as(Integer.class).orElse(null);
 
         int entriesFound = 0;
-        long searchTime = 0L;
+        long searchTime;
 
         try (LDAPConnection connection = this.getLdapConnection(runContext)) {
             rFilter = rFilter.replaceAll("\n\\s*", "");
+
             SearchRequest request = new SearchRequest(
-                rBaseDn, sub, rFilter,
-                rAttributes.contains("0.0") ? SearchRequest.REQUEST_ATTRS_DEFAULT : rAttributes.toArray(new String[0])
+                rBaseDn,
+                sub,
+                rFilter,
+                rAttributes.contains("0.0")
+                    ? SearchRequest.REQUEST_ATTRS_DEFAULT
+                    : rAttributes.toArray(new String[0])
             );
 
             if (rSizeLimit != null) {
                 request.setSizeLimit(rSizeLimit);
             }
 
+            boolean acceptSizeLimitExceeded =
+                (rSizeLimit != null) || (rPageSize != null && rPageSize > 0);
+
             long startTime = System.currentTimeMillis();
-            SearchResult result;
 
-            try {
-                result = connection.search(request);
-            } catch (LDAPSearchException e) {
-                // Some servers return SIZE_LIMIT_EXCEEDED even when respecting the limit
-                if (rSizeLimit != null && e.getResultCode() == ResultCode.SIZE_LIMIT_EXCEEDED) {
-                    result = e.getSearchResult(); // contains partial entries
-                    logger.info("LDAP size limit exceeded but sizeLimit is set; treating as partial success.");
-                } else {
-                    logger.error("LDAP error: {}", e.getResultString());
-                    throw e;
-                }
+            List<SearchResultEntry> entries = searchWithOptionalPaging(
+                connection,
+                request,
+                logger,
+                rPageSize,
+                acceptSizeLimitExceeded
+            );
+
+            searchTime = System.currentTimeMillis() - startTime;
+
+            for (SearchResultEntry entry : entries) {
+                results.add(entry.toLDIFString());
+                entriesFound++;
             }
 
-            // Accept SUCCESS or partial success when size limit exceeded
-            if (result.getResultCode() == ResultCode.SUCCESS ||
-                (rSizeLimit != null && result.getResultCode() == ResultCode.SIZE_LIMIT_EXCEEDED)) {
+            File tempfile = runContext.workingDir()
+                .createTempFile(String.join("\n", results).getBytes(), ".ldif")
+                .toFile();
 
-                searchTime = System.currentTimeMillis() - startTime;
+            storedResults = runContext.storage().putFile(tempfile);
 
-                for (SearchResultEntry entry : result.getSearchEntries()) {
-                    results.add(entry.toLDIFString());
-                    entriesFound++;
-                }
-
-                File tempfile = runContext.workingDir()
-                    .createTempFile(String.join("\n", results).getBytes(), ".ldif")
-                    .toFile();
-                storedResults = runContext.storage().putFile(tempfile);
-            } else {
-                logger.warn("Search failed with filter {}, LDAP response : {}", filter, result.getResultString());
-            }
+        } catch (LDAPException e) {
+            logger.error("LDAP error: {}", e.getResultString());
+            throw e;
         }
 
         runContext.metric(Counter.of("entries.found", entriesFound, "origin", "Search"));
         runContext.metric(Timer.of("search.mean.time", Duration.ofMillis(searchTime), "origin", "Search"));
 
-        return Output.builder().uri(storedResults).build();
+        return Output.builder()
+            .uri(storedResults)
+            .build();
+    }
+
+    private SearchResult executeSearchAcceptingSizeLimit(
+        LDAPConnection connection,
+        SearchRequest request,
+        Logger logger,
+        boolean acceptSizeLimitExceeded
+    ) throws LDAPException {
+        try {
+            return connection.search(request);
+        } catch (LDAPSearchException e) {
+            // Some servers return SIZE_LIMIT_EXCEEDED even when respecting limits
+            if (acceptSizeLimitExceeded && e.getResultCode() == ResultCode.SIZE_LIMIT_EXCEEDED) {
+                logger.info("LDAP size limit exceeded; treating as partial success.");
+                return e.getSearchResult();
+            }
+            throw e;
+        }
+    }
+
+    private List<SearchResultEntry> searchWithOptionalPaging(
+        LDAPConnection connection,
+        SearchRequest request,
+        Logger logger,
+        Integer pageSize,
+        boolean acceptSizeLimitExceeded
+    ) throws LDAPException {
+
+        List<SearchResultEntry> entries = new ArrayList<>();
+
+        if (pageSize == null || pageSize <= 0) {
+            SearchResult result = executeSearchAcceptingSizeLimit(
+                connection, request, logger, acceptSizeLimitExceeded
+            );
+
+            if (result.getResultCode() == ResultCode.SUCCESS ||
+                (acceptSizeLimitExceeded && result.getResultCode() == ResultCode.SIZE_LIMIT_EXCEEDED)) {
+                entries.addAll(result.getSearchEntries());
+            }
+
+            return entries;
+        }
+
+        // RFC2696 paging loop
+        ASN1OctetString cookie = null;
+        do {
+            request.setControls(new SimplePagedResultsControl(pageSize, cookie));
+
+            SearchResult pageResult = executeSearchAcceptingSizeLimit(
+                connection, request, logger, acceptSizeLimitExceeded
+            );
+
+            if (pageResult.getResultCode() != ResultCode.SUCCESS &&
+                pageResult.getResultCode() != ResultCode.SIZE_LIMIT_EXCEEDED) {
+                logger.warn("Search failed, LDAP response : {}", pageResult.getResultString());
+                break;
+            }
+
+            entries.addAll(pageResult.getSearchEntries());
+
+            SimplePagedResultsControl responseControl = SimplePagedResultsControl.get(pageResult);
+            cookie = responseControl != null ? responseControl.getCookie() : null;
+
+        } while (cookie != null && cookie.getValueLength() > 0);
+
+        return entries;
     }
 }

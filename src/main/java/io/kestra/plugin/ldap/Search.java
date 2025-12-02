@@ -1,13 +1,10 @@
 package io.kestra.plugin.ldap;
 
-import com.unboundid.ldap.sdk.LDAPConnection;
-import com.unboundid.ldap.sdk.LDAPException;
-import com.unboundid.ldap.sdk.ResultCode;
-import com.unboundid.ldap.sdk.SearchRequest;
-import com.unboundid.ldap.sdk.SearchResult;
-import com.unboundid.ldap.sdk.SearchResultEntry;
-import com.unboundid.ldap.sdk.SearchScope;
-
+import com.unboundid.asn1.ASN1OctetString;
+import com.unboundid.ldap.sdk.*;
+import com.unboundid.ldap.sdk.controls.SimplePagedResultsControl;
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
@@ -15,30 +12,18 @@ import io.kestra.core.models.executions.metrics.Timer;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.core.models.annotations.Metric;
-
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.*;
+import lombok.Builder.Default;
+import lombok.experimental.SuperBuilder;
+import org.slf4j.Logger;
 
 import java.io.File;
-
 import java.net.URI;
-
 import java.time.Duration;
-
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
-import lombok.Builder.Default;
-import lombok.Builder;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
-import lombok.experimental.SuperBuilder;
-
-import org.slf4j.Logger;
 
 @SuperBuilder
 @ToString
@@ -51,12 +36,13 @@ import org.slf4j.Logger;
 )
 @Plugin(
     examples = {
-        @io.kestra.core.models.annotations.Example(
+        @Example(
             title = """
-                    Retrieve LDAP entries.
-                    In this example, assuming that their is exactly one entry matching each of our filter,
-                    the outputs of the task would be four entries in this order (since we search two times in the same baseDn) :
-                    (dn, description, mail) of {melusine, metatron, melusine, metatron}.""",
+                Retrieve LDAP entries.
+                In this example, assuming that their is exactly one entry matching each of our filter,
+                the outputs of the task would be four entries in this order (since we search two times in the same baseDn) :
+                (dn, description, mail) of {melusine, metatron, melusine, metatron}.
+                """,
             full = true,
             code = """
                 id: ldap_search
@@ -91,15 +77,11 @@ import org.slf4j.Logger;
     }
 )
 public class Search extends LdapConnection implements RunnableTask<Search.Output> {
-    /**
-     * INPUTS ----------------------------------------------------------------------------------------------------------------- //
-    **/
 
     @Schema(
         title = "Filter",
         description = "Filter for the search in the LDAP."
     )
-    @PluginProperty
     @Default
     private Property<String> filter = Property.ofValue("(objectclass=*)");
 
@@ -114,7 +96,6 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
                 `--> This special attribute canno't be combined with other attributes and the search will ignore everything else.
             """
     )
-    @PluginProperty
     @Default
     private Property<List<String>> attributes = Property.ofValue(Collections.singletonList(SearchRequest.ALL_USER_ATTRIBUTES));
 
@@ -122,7 +103,6 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
         title = "Base DN",
         description = "Base DN target in the LDAP."
     )
-    @PluginProperty
     @Default
     private Property<String> baseDn = Property.ofValue("ou=system");
 
@@ -139,9 +119,34 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
     @PluginProperty
     private SearchScope sub = SearchScope.SUB;
 
-    /**
-     * OUTPUTS ------------------------------------------------------------------------------------------------------------------- //
-    **/
+    @Schema(
+        title = "Size limit",
+        description = """
+            Maximum number of entries to return.
+
+            Use this when you want to LIMIT the total number of results on purpose (sampling / safety).
+            If more entries match the filter, only the first N will be returned.
+
+            - Typical use case: you only need a subset (e.g., first 200 users).
+            - Consequence: results can be TRUNCATED.
+            """
+    )
+    private Property<Integer> sizeLimit;
+
+    @Schema(
+        title = "Page size",
+        description = """
+            Enable LDAP paging (RFC2696) and fetch results by chunks of this size.
+
+            Use this when you want to RETRIEVE ALL matching entries safely, even if there are more
+            than the server limit (often ~1000). The task will perform multiple paged searches until
+            all entries are collected.
+
+            - Typical use case: full export / sync of an LDAP tree.
+            - Consequence: no truncation, but potentially more requests and longer execution time.
+            """
+    )
+    private Property<Integer> pageSize;
 
     @Builder
     @Getter
@@ -153,52 +158,139 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
         private final URI uri;
     }
 
-    /**
-     * CODE ------------------------------------------------------------------------------------------------------------------- //
-    **/
-
     @Override
     public Search.Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
         List<String> results = new ArrayList<>();
         URI storedResults = null;
 
-        String rFilter = Property.as(filter, runContext, String.class);
-        List<String> rAttributes = Property.asList(attributes, runContext, String.class);
-        String rBaseDn = Property.as(baseDn, runContext, String.class);
+        String rFilter = runContext.render(this.filter).as(String.class).orElse("(objectclass=*)");
+        List<String> rAttributes = runContext.render(this.attributes).asList(String.class);
+        String rBaseDn = runContext.render(this.baseDn).as(String.class).orElse("ou=system");
+        Integer rSizeLimit = runContext.render(this.sizeLimit).as(Integer.class).orElse(null);
+        Integer rPageSize = runContext.render(this.pageSize).as(Integer.class).orElse(null);
 
-        Integer entriesFound = 0;
-        Long searchTime = 0L;
+        int entriesFound = 0;
+        long searchTime;
 
         try (LDAPConnection connection = this.getLdapConnection(runContext)) {
             rFilter = rFilter.replaceAll("\n\\s*", "");
+
             SearchRequest request = new SearchRequest(
-                rBaseDn, sub, rFilter,
-                rAttributes.contains("0.0") ? SearchRequest.REQUEST_ATTRS_DEFAULT : rAttributes.toArray(new String[0])
+                rBaseDn,
+                sub,
+                rFilter,
+                rAttributes.contains("0.0")
+                    ? SearchRequest.REQUEST_ATTRS_DEFAULT
+                    : rAttributes.toArray(new String[0])
             );
-            Long startTime = System.currentTimeMillis();
-            SearchResult result = connection.search(request);
-            if (result.getResultCode() == ResultCode.SUCCESS) {
-                searchTime = System.currentTimeMillis() - startTime;
-                for (SearchResultEntry entry : result.getSearchEntries()) {
-                    results.add(entry.toLDIFString());
-                    entriesFound++;
-                }
-                File tempfile = runContext.workingDir().createTempFile(String.join("\n", results).getBytes() ,".ldif").toFile();
-                storedResults = runContext.storage().putFile(tempfile);
-            } else {
-                logger.warn("Search failed with filter {}, LDAP response : {}", filter, result.getResultString());
+
+            if (rSizeLimit != null) {
+                request.setSizeLimit(rSizeLimit);
             }
+
+            boolean acceptSizeLimitExceeded =
+                (rSizeLimit != null) || (rPageSize != null && rPageSize > 0);
+
+            long startTime = System.currentTimeMillis();
+
+            List<SearchResultEntry> entries = searchWithOptionalPaging(
+                connection,
+                request,
+                logger,
+                rPageSize,
+                acceptSizeLimitExceeded
+            );
+
+            searchTime = System.currentTimeMillis() - startTime;
+
+            for (SearchResultEntry entry : entries) {
+                results.add(entry.toLDIFString());
+                entriesFound++;
+            }
+
+            File tempfile = runContext.workingDir()
+                .createTempFile(String.join("\n", results).getBytes(), ".ldif")
+                .toFile();
+
+            storedResults = runContext.storage().putFile(tempfile);
+
         } catch (LDAPException e) {
             logger.error("LDAP error: {}", e.getResultString());
             throw e;
         }
+
         runContext.metric(Counter.of("entries.found", entriesFound, "origin", "Search"));
         runContext.metric(Timer.of("search.mean.time", Duration.ofMillis(searchTime), "origin", "Search"));
-
 
         return Output.builder()
             .uri(storedResults)
             .build();
+    }
+
+    private SearchResult executeSearchAcceptingSizeLimit(
+        LDAPConnection connection,
+        SearchRequest request,
+        Logger logger,
+        boolean acceptSizeLimitExceeded
+    ) throws LDAPException {
+        try {
+            return connection.search(request);
+        } catch (LDAPSearchException e) {
+            // Some servers return SIZE_LIMIT_EXCEEDED even when respecting limits
+            if (acceptSizeLimitExceeded && e.getResultCode() == ResultCode.SIZE_LIMIT_EXCEEDED) {
+                logger.info("LDAP size limit exceeded; treating as partial success.");
+                return e.getSearchResult();
+            }
+            throw e;
+        }
+    }
+
+    private List<SearchResultEntry> searchWithOptionalPaging(
+        LDAPConnection connection,
+        SearchRequest request,
+        Logger logger,
+        Integer pageSize,
+        boolean acceptSizeLimitExceeded
+    ) throws LDAPException {
+
+        List<SearchResultEntry> entries = new ArrayList<>();
+
+        if (pageSize == null || pageSize <= 0) {
+            SearchResult result = executeSearchAcceptingSizeLimit(
+                connection, request, logger, acceptSizeLimitExceeded
+            );
+
+            if (result.getResultCode() == ResultCode.SUCCESS ||
+                (acceptSizeLimitExceeded && result.getResultCode() == ResultCode.SIZE_LIMIT_EXCEEDED)) {
+                entries.addAll(result.getSearchEntries());
+            }
+
+            return entries;
+        }
+
+        // RFC2696 paging loop
+        ASN1OctetString cookie = null;
+        do {
+            request.setControls(new SimplePagedResultsControl(pageSize, cookie));
+
+            SearchResult pageResult = executeSearchAcceptingSizeLimit(
+                connection, request, logger, acceptSizeLimitExceeded
+            );
+
+            if (pageResult.getResultCode() != ResultCode.SUCCESS &&
+                pageResult.getResultCode() != ResultCode.SIZE_LIMIT_EXCEEDED) {
+                logger.warn("Search failed, LDAP response : {}", pageResult.getResultString());
+                break;
+            }
+
+            entries.addAll(pageResult.getSearchEntries());
+
+            SimplePagedResultsControl responseControl = SimplePagedResultsControl.get(pageResult);
+            cookie = responseControl != null ? responseControl.getCookie() : null;
+
+        } while (cookie != null && cookie.getValueLength() > 0);
+
+        return entries;
     }
 }

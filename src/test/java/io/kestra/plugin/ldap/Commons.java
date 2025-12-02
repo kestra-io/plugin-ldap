@@ -33,6 +33,17 @@ import java.util.ArrayList;
  * @apiNote Provides common assertions tools and a SearchTask making function.
  */
 final class Commons {
+    static {
+        // Force a recent Docker API version so newer Docker engines accept the client
+        String apiVersion = "1.44";
+        if (System.getProperty("api.version") == null && System.getenv("DOCKER_API_VERSION") == null) {
+            System.setProperty("api.version", apiVersion);
+        }
+        // docker-java also reads DOCKER_API_VERSION when set as a system property
+        if (System.getProperty("DOCKER_API_VERSION") == null) {
+            System.setProperty("DOCKER_API_VERSION", apiVersion);
+        }
+    }
 
     /** Docker image ref : https://hub.docker.com/r/rroemhild/test-openldap */
     public static final DockerImageName LDAP_IMAGE = DockerImageName.parse("rroemhild/test-openldap:2.1");
@@ -53,7 +64,7 @@ final class Commons {
      */
     public static RunContext getRunContext(List<String> contents, String extension, StorageInterface storageInterface, RunContextFactory runContextFactory) {
         Map<String, String> kestraPaths = new HashMap<>();
-        Integer idx = 0;
+        int idx = 0;
         for (String content : contents) {
             URI filePath;
             try {
@@ -114,7 +125,7 @@ final class Commons {
     }
 
     /**
-     * Makes an Search task and sets its connecion options to the test LDAP server.
+     * Makes a Search task and sets its connecion options to the test LDAP server.
      * @param filter : The filter to use for the search.
      * @param baseDn : The DN to search from.
      * @param attributes : The attributes to retrieve.
@@ -130,7 +141,6 @@ final class Commons {
             .baseDn(Property.ofValue(baseDn))
             .filter(Property.ofValue(filter))
             .attributes(Property.ofValue(attributes))
-            .attributes(Property.ofValue(attributes))
             .build();
     }
 
@@ -141,7 +151,6 @@ final class Commons {
                 .password(Property.ofValue(Commons.PASS))
                 .baseDn(Property.ofValue(baseDn))
                 .filter(Property.ofValue(filter))
-                .attributes(Property.ofValue(attributes))
                 .attributes(Property.ofValue(attributes))
                 .port(Property.ofValue(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[1]))))
                 .sslOptions(SslOptions.builder().insecureTrustAllCertificates(Property.ofValue(true)).build())

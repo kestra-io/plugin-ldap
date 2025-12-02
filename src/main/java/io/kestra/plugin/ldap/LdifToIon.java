@@ -69,13 +69,13 @@ import org.slf4j.Logger;
             code = """
                 id: ldap_ldif_to_ion
                 namespace: company.team
-                
+
                 inputs:
                   - id: file1
                     type: FILE
                   - id: file2
                     type: FILE
-                
+
                 tasks:
                   - id: ldif_to_ion
                     type: io.kestra.plugin.ldap.LdifToIon
@@ -247,7 +247,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
      * @param ionWriter : The ION writer to write the entry to.
      */
     @SuppressWarnings("null")
-    private void processEntries(LDIFReader ldifReader, IonWriter ionWriter) throws IOException, IllegalArgumentException {
+    private void processEntries(LDIFReader ldifReader, IonWriter ionWriter) throws IllegalArgumentException {
         while (true) {
             String[] record = null;
             Entry entry = null;
@@ -314,9 +314,29 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
         for (Attribute attribute : attributes) {
             ionWriter.setFieldName(attribute.getName());
             ionWriter.stepIn(IonType.LIST);
-            for (String value : attribute.getValues()) {
-                ionWriter.writeString(value);
+
+            String[] values = attribute.getValues();
+
+            if (values == null || values.length == 0) {
+                // No value at all -> single null
+                ionWriter.writeNull();
+            } else {
+                boolean wroteNonEmpty = false;
+
+                // Write only non-empty values
+                for (String value : values) {
+                    if (value != null && !value.isBlank()) {
+                        ionWriter.writeString(value);
+                        wroteNonEmpty = true;
+                    }
+                }
+
+                // If all values were empty/blank -> single null
+                if (!wroteNonEmpty) {
+                    ionWriter.writeNull();
+                }
             }
+
             ionWriter.stepOut();
         }
         ionWriter.stepOut();

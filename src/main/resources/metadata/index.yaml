@@ -1,8 +1,8 @@
 group: io.kestra.plugin.ldap
 name: "ldap"
 title: "LDAP"
-description: "This sub-group of plugins contains tasks for handling ldap jobs."
-body: ""
+description: "Tasks that query and modify LDAP directories."
+body: "Provide LDAP server URL, bind DN/password, and base DN to search entries, add/modify attributes, or delete objects, enabling identity data automation from Kestra."
 videos: []
 createdBy: "Kestra Core Team"
 managedBy: "Kestra Core Team"

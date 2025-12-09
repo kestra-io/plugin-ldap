@@ -39,8 +39,8 @@ import java.util.List;
         @Example(
             title = """
                 Retrieve LDAP entries.
-                In this example, assuming that their is exactly one entry matching each of our filter,
-                the outputs of the task would be four entries in this order (since we search two times in the same baseDn) :
+                In this example, assuming that there is exactly one entry matching each of our filters,
+                the output of the task would be four entries in this order (since we search twice in the same base DN):
                 (dn, description, mail) of {melusine, metatron, melusine, metatron}.
                 """,
             full = true,

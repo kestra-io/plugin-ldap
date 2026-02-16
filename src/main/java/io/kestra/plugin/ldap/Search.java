@@ -123,7 +123,12 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
     @Schema(
         title = "Page size",
         description = """
-            Enables RFC2696 paging and fetches results in chunks of this size; null or <=0 disables paging. Use to collect all matches beyond server limits at the cost of extra round trips.
+            Enable LDAP paging (RFC2696) and fetch results by chunks of this size; null or <=0 disables paging.
+
+            Use this when you want to RETRIEVE ALL matching entries safely, even if there are more than the server limit (often ~1000). The task will perform multiple paged searches until all entries are collected.
+
+            - Typical use case: full export / sync of an LDAP tree.
+            - Consequence: no truncation, but potentially more requests and longer execution time.
             """
     )
     private Property<Integer> pageSize;

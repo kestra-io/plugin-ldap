@@ -46,8 +46,8 @@ import org.slf4j.Logger;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Remove entries from an LDAP server.",
-    description = "Remove entries based on a targeted DN list."
+    title = "Delete LDAP entries by DN",
+    description = "Reads LDIF records to extract DNs and submits LDAP delete requests. Each DN is handled independently; missing entries or ACL blocks are logged and processing continues."
 )
 @Plugin(
     examples = {
@@ -94,8 +94,8 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
     **/
 
     @Schema(
-        title = "File(s) URI(s) containing Distinguished-Name(s)",
-        description = "Targeted DN(s) in the LDAP."
+        title = "LDIF input URIs",
+        description = "URIs to LDIF files whose entries provide the target DNs to delete; each DN is deleted separately and failures do not stop the task."
     )
     @PluginProperty(dynamic = true)
     @NotNull

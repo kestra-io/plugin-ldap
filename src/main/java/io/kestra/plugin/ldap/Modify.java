@@ -46,8 +46,8 @@ import org.slf4j.Logger;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Modify entries in an LDAP server.",
-    description = "Modify, Delete or Add attributes or DNs following LDIF changeType fields of each entries provided."
+    title = "Apply LDIF changes to LDAP",
+    description = "Executes add/delete/modify/moddn operations described in LDIF change records from provided URIs. Each change is sent independently; server-side ACLs apply and failures are logged while processing continues."
 )
 @Plugin(
     examples = {
@@ -94,8 +94,8 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
     **/
 
     @Schema(
-        title = "URI(s) of input file(s)",
-        description = "List of URI(s) of file(s) containing LDIF formatted entries to modify into LDAP. Entries must provide a changeType field."
+        title = "LDIF change URIs",
+        description = "URIs to LDIF files containing changeType records; each record is processed in order and errors on a record do not stop the remaining operations."
     )
     @PluginProperty(dynamic = true)
     @NotNull

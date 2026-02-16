@@ -58,8 +58,8 @@ import org.slf4j.Logger;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Convert LDIF entries from an LDAP server into an ION file.",
-    description = "Transform .ldif files to .ion ones."
+    title = "Convert LDIF records to Ion",
+    description = "Reads LDIF entries or change records and emits Ion documents stored in internal storage. Supports add/delete/modify/moddn records; malformed items are logged and skipped."
 )
 @Plugin(
     examples = {
@@ -161,7 +161,8 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
     **/
 
     @Schema(
-        title = "URI(s) of file(s) containing LDIF entries."
+        title = "LDIF input URIs",
+        description = "URIs to LDIF files in internal storage; entries and change records are converted in order."
     )
     @PluginProperty(dynamic = true)
     @NotNull
@@ -175,7 +176,8 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "URI(s) of ION translated file(s)."
+            title = "Ion output URIs",
+            description = "URIs in internal storage for the generated Ion files."
         )
         private final List<URI> urisList;
     }

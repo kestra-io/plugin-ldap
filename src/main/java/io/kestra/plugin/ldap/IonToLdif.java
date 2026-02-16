@@ -56,8 +56,8 @@ import org.slf4j.Logger;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Combine ION entries into an LDIF file for an LDAP server.",
-    description = "Transform .ion files to .ldif ones."
+    title = "Convert Ion records to LDIF for LDAP",
+    description = "Transforms Ion files containing LDAP entries or change records into LDIF files stored in internal storage. Handles add/delete/modify/moddn records and logs malformed items while continuing."
 )
 @Plugin(
     examples = {
@@ -75,7 +75,7 @@ import org.slf4j.Logger;
                     type: FILE
 
                 tasks:
-                  - id: ion_to_ldiff
+                  - id: ion_to_ldif
                     type: io.kestra.plugin.ldap.IonToLdif
                     inputs:
                       - "{{ inputs.file1 }}"
@@ -160,7 +160,8 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
     **/
 
     @Schema(
-        title = "URI(s) of file(s) containing ION entries."
+        title = "Ion input URIs",
+        description = "URIs to Ion files in internal storage; each entry or change record is translated to LDIF."
     )
     @PluginProperty(dynamic = true)
     @NotNull
@@ -174,7 +175,8 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "LDIF transformed file(s) URI(s)."
+            title = "LDIF output URIs",
+            description = "URIs in internal storage for the generated LDIF files."
         )
         private final List<URI> urisList;
     }

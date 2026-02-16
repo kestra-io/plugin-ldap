@@ -31,16 +31,17 @@ import java.util.List;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Retrieve entries from an LDAP server.",
-    description = "Search and list entries based on a filter list for each base DN target."
+    title = "Search LDAP entries and store results",
+    description = "Queries an LDAP server with a rendered filter and attributes, optionally paging to bypass server result limits. Accepts an optional size cap that truncates results when set and writes the LDIF output to internal storage."
 )
 @Plugin(
     examples = {
         @Example(
             title = """
                 Retrieve LDAP entries.
-                In this example, assuming that their is exactly one entry matching each of our filter,
-                the outputs of the task would be four entries in this order (since we search two times in the same baseDn) :
+                In this example, assuming exactly one entry matches each filter,
+                the resulting LDIF file (referenced by the task output `uri`) will contain four entries
+                in this order (we search twice on the same baseDn):
                 (dn, description, mail) of {melusine, metatron, melusine, metatron}.
                 """,
             full = true,
@@ -86,14 +87,9 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
     private Property<String> filter = Property.ofValue("(objectclass=*)");
 
     @Schema(
-        title = "Attributes",
+        title = "Attributes to return",
         description = """
-            Specific attributes to retrieve from the filtered entries. Retrieves all attributes by default.
-            Sepcial attributes may be specified :
-            "+"   -> OPERATIONAL_ATTRIBUTES
-            "1.1" -> NO_ATTRIBUTES
-            "0.0" -> ALL_ATTRIBUTES_EXCEPT_OPERATIONAL
-                `--> This special attribute canno't be combined with other attributes and the search will ignore everything else.
+            LDAP attributes to fetch; defaults to all user attributes. Special tokens: "+" (operational), "1.1" (none), "0.0" (all except operational, cannot be combined with others).
             """
     )
     @Default
@@ -101,19 +97,16 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
 
     @Schema(
         title = "Base DN",
-        description = "Base DN target in the LDAP."
+        description = "Search root DN; defaults to ou=system."
     )
     @Default
     private Property<String> baseDn = Property.ofValue("ou=system");
 
     @Schema(
-        title = "SUB",
+        title = "Search scope",
         description = """
-            Search scope of the filter :
-            BASE -- Indicates that only the entry specified by the base DN should be considered.
-            ONE -- Indicates that only entries that are immediate subordinates of the entry specified by the base DN (but not the base entry itself) should be considered.
-            SUB -- Indicates that the base entry itself and any subordinate entries (to any depth) should be considered.
-            SUBORDINATE_SUBTREE -- Indicates that any subordinate entries (to any depth) below the entry specified by the base DN should be considered, but the base entry itself should not be considered, as described in draft-sermersheim-ldap-subordinate-scope."""
+            LDAP search scope; defaults to SUB (base entry plus all descendants). Options: BASE (base only), ONE (immediate children), SUB, SUBORDINATE_SUBTREE (descendants only).
+            """
     )
     @Default
     @PluginProperty
@@ -122,13 +115,7 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
     @Schema(
         title = "Size limit",
         description = """
-            Maximum number of entries to return.
-
-            Use this when you want to LIMIT the total number of results on purpose (sampling / safety).
-            If more entries match the filter, only the first N will be returned.
-
-            - Typical use case: you only need a subset (e.g., first 200 users).
-            - Consequence: results can be TRUNCATED.
+            Maximum number of entries to return; truncates results when hit and accepts SIZE_LIMIT_EXCEEDED responses. Leave blank to use the server default.
             """
     )
     private Property<Integer> sizeLimit;
@@ -136,11 +123,9 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
     @Schema(
         title = "Page size",
         description = """
-            Enable LDAP paging (RFC2696) and fetch results by chunks of this size.
+            Enable LDAP paging (RFC2696) and fetch results by chunks of this size; null or <=0 disables paging.
 
-            Use this when you want to RETRIEVE ALL matching entries safely, even if there are more
-            than the server limit (often ~1000). The task will perform multiple paged searches until
-            all entries are collected.
+            Use this when you want to RETRIEVE ALL matching entries safely, even if there are more than the server limit (often ~1000). The task will perform multiple paged searches until all entries are collected.
 
             - Typical use case: full export / sync of an LDAP tree.
             - Consequence: no truncation, but potentially more requests and longer execution time.

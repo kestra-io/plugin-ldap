@@ -45,8 +45,8 @@ import org.slf4j.Logger;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Insert entries to an LDAP server.",
-    description = "Creates a new entry, if allowed, for each line of provided LDIF files."
+    title = "Add LDIF entries to LDAP",
+    description = "Reads LDIF records from one or more URIs and issues LDAP add requests for each entry. Operations are independent (non-transactional) and rely on server ACLs; failures on a given entry are logged and processing continues."
 )
 @Plugin(
     examples = {
@@ -95,8 +95,8 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
     **/
 
     @Schema(
-        title = "URI(s) of input file(s)",
-        description = "List of URI(s) of file(s) containing LDIF formatted entries to input into LDAP."
+        title = "LDIF input URIs",
+        description = "One or more URIs to LDIF files in internal storage; every entry is attempted separately and errors are logged without stopping the task."
     )
     @PluginProperty(dynamic = true)
     @NotNull

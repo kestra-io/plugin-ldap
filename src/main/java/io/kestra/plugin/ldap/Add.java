@@ -1,5 +1,12 @@
 package io.kestra.plugin.ldap;
 
+import java.io.IOException;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.slf4j.Logger;
+
 import com.unboundid.ldap.sdk.Entry;
 import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPException;
@@ -8,9 +15,9 @@ import com.unboundid.ldap.sdk.ResultCode;
 import com.unboundid.ldif.LDIFException;
 import com.unboundid.ldif.LDIFReader;
 
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.executions.metrics.Timer;
 import io.kestra.core.models.tasks.RunnableTask;
@@ -18,16 +25,7 @@ import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-
 import jakarta.validation.constraints.NotNull;
-
-import java.io.IOException;
-
-import java.time.Duration;
-
-import java.util.ArrayList;
-import java.util.List;
-
 import lombok.AccessLevel;
 import lombok.Builder.Default;
 import lombok.EqualsAndHashCode;
@@ -36,8 +34,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-
-import org.slf4j.Logger;
 
 @SuperBuilder
 @ToString
@@ -71,28 +67,28 @@ import org.slf4j.Logger;
         )
     },
     metrics = {
-    @Metric(
-        name = "additions.requested",
-        type = Counter.TYPE,
-        description = "The total number of LDIF addition requests made."
-    ),
-    @Metric(
-        name = "additions.done",
-        type = Counter.TYPE,
-        description = "The total number of successful additions to the LDAP server."
-    ),
-    @Metric(
-        name = "additions.mean.time",
-        type = Timer.TYPE,
-        description = "The mean duration of LDAP additions in milliseconds."
-    )
-}
+        @Metric(
+            name = "additions.requested",
+            type = Counter.TYPE,
+            description = "The total number of LDIF addition requests made."
+        ),
+        @Metric(
+            name = "additions.done",
+            type = Counter.TYPE,
+            description = "The total number of successful additions to the LDAP server."
+        ),
+        @Metric(
+            name = "additions.mean.time",
+            type = Timer.TYPE,
+            description = "The mean duration of LDAP additions in milliseconds."
+        )
+    }
 
 )
 public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
     /**
      * INPUTS ----------------------------------------------------------------------------------------------------------------- //
-    **/
+     **/
 
     @Schema(
         title = "LDIF input URIs",
@@ -104,7 +100,7 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
 
     /**
      * CODE ------------------------------------------------------------------------------------------------------------------- //
-    **/
+     **/
 
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
@@ -151,6 +147,7 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
 
     /**
      * Processes the entries from the LDIFReader and attempts to add them to the LDAP server.
+     * 
      * @param reader : The LDIFReader containing the entries to be processed.
      * @param connection : The LDAPConnection to the LDAP server.
      */
@@ -163,7 +160,8 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
                 this.logger.error("Cannot read entry: {}", e.getDataLines());
                 continue;
             }
-            if (entry == null) break;
+            if (entry == null)
+                break;
 
             this.additionRequests++;
             Long startTime = System.currentTimeMillis();
@@ -180,6 +178,5 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
             }
         }
     }
-
 
 }

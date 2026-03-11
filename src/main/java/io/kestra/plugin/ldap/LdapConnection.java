@@ -1,35 +1,32 @@
 package io.kestra.plugin.ldap;
 
+import java.security.GeneralSecurityException;
+
+import javax.net.ssl.SSLSocketFactory;
+
+import org.slf4j.Logger;
+
 import com.unboundid.ldap.sdk.BindRequest;
 import com.unboundid.ldap.sdk.GSSAPIBindRequest;
 import com.unboundid.ldap.sdk.GSSAPIBindRequestProperties;
 import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPException;
 import com.unboundid.ldap.sdk.SimpleBindRequest;
-
 import com.unboundid.util.ssl.SSLUtil;
 import com.unboundid.util.ssl.TrustAllTrustManager;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.http.client.configurations.SslOptions;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
+
 import io.swagger.v3.oas.annotations.media.Schema;
-
 import jakarta.validation.constraints.NotNull;
-
 import lombok.Builder;
-import lombok.Builder.Default;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
-
-import org.slf4j.Logger;
-
-import javax.net.ssl.SSLSocketFactory;
-import java.security.GeneralSecurityException;
-import java.util.NoSuchElementException;
 
 @SuperBuilder
 @Getter
@@ -66,7 +63,7 @@ public abstract class LdapConnection extends Task {
     @Schema(
         title = "Authentication method",
         description = "Authentication method to use with the LDAP server.",
-        allowableValues = {"simple", "gssapi"}
+        allowableValues = { "simple", "gssapi" }
     )
     @Builder.Default
     protected Property<String> authMethod = Property.ofValue("simple");
@@ -157,7 +154,6 @@ public abstract class LdapConnection extends Task {
             throw e;
         }
     }
-
 
     public LDAPConnection createLdapConnection(String hostname, int port, boolean trustAllCertificates) throws LDAPException, GeneralSecurityException {
         LDAPConnection connection;

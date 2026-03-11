@@ -1,5 +1,12 @@
 package io.kestra.plugin.ldap;
 
+import java.io.IOException;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.slf4j.Logger;
+
 import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPException;
 import com.unboundid.ldap.sdk.LDAPResult;
@@ -8,9 +15,9 @@ import com.unboundid.ldif.LDIFChangeRecord;
 import com.unboundid.ldif.LDIFException;
 import com.unboundid.ldif.LDIFReader;
 
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.executions.metrics.Timer;
 import io.kestra.core.models.tasks.RunnableTask;
@@ -18,16 +25,7 @@ import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-
 import jakarta.validation.constraints.NotNull;
-
-import java.io.IOException;
-
-import java.time.Duration;
-
-import java.util.List;
-import java.util.ArrayList;
-
 import lombok.AccessLevel;
 import lombok.Builder.Default;
 import lombok.EqualsAndHashCode;
@@ -35,10 +33,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
-
 import lombok.experimental.SuperBuilder;
-
-import org.slf4j.Logger;
 
 @SuperBuilder
 @ToString
@@ -57,7 +52,7 @@ import org.slf4j.Logger;
             code = """
                 id: ldap_modify
                 namespace: company.team
-                
+
                 tasks:
                   - id: modify
                     type: io.kestra.plugin.ldap.Modify
@@ -91,7 +86,7 @@ import org.slf4j.Logger;
 public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
     /**
      * INPUTS ----------------------------------------------------------------------------------------------------------------- //
-    **/
+     **/
 
     @Schema(
         title = "LDIF change URIs",
@@ -103,7 +98,7 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
 
     /**
      * CODE ------------------------------------------------------------------------------------------------------------------- //
-    **/
+     **/
 
     /** The kestra logger (slf4j) for the task. */
     @Getter(AccessLevel.NONE)
@@ -150,6 +145,7 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
 
     /**
      * Processes the entries from the LDIFReader and attempts to modify them in the LDAP server.
+     * 
      * @param reader : The LDIFReader containing the entries to be processed.
      * @param connection : The LDAPConnection to the LDAP server.
      */

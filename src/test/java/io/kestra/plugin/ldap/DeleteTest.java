@@ -1,13 +1,5 @@
 package io.kestra.plugin.ldap;
 
-import io.kestra.core.junit.annotations.KestraTest;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.storages.StorageInterface;
-
-import jakarta.inject.Inject;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -15,10 +7,17 @@ import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.junit.jupiter.api.TestInstance;
-
+import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.testcontainers.containers.GenericContainer;
+
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.runners.RunContext;
+import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.storages.StorageInterface;
+
+import jakarta.inject.Inject;
 
 @KestraTest
 @TestInstance(value = Lifecycle.PER_CLASS)
@@ -50,6 +49,7 @@ public class DeleteTest {
 
     /**
      * Makes an Deletion task and sets its connecion options to the test LDAP server.
+     * 
      * @param files : Kestra URI(s) of LDIF formated file(s) containing DN(s).
      * @return A ready to run Deletion task.
      */

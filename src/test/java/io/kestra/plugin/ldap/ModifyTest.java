@@ -1,5 +1,16 @@
 package io.kestra.plugin.ldap;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestInstance.Lifecycle;
+import org.testcontainers.containers.GenericContainer;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
@@ -7,17 +18,6 @@ import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
 
 import jakarta.inject.Inject;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance.Lifecycle;
-import org.junit.jupiter.api.TestInstance;
-
-import org.testcontainers.containers.GenericContainer;
 
 @KestraTest
 @TestInstance(value = Lifecycle.PER_CLASS)
@@ -49,6 +49,7 @@ public class ModifyTest {
 
     /**
      * Makes an Modifyition task and sets its connecion options to the test LDAP server.
+     * 
      * @param files : Kestra URI(s) of LDIF formated file(s) containing DN(s) and attributes.
      * @return A ready to run Modification task.
      */
@@ -102,12 +103,13 @@ public class ModifyTest {
             employeeType: Accountant
             givenName: Hermes
             """;
-            /////////////////////////
+        /////////////////////////
 
         RunContext runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
         Modify task = makeTask(Commons.makeKestraPebblesForXFiles(inputs.size()));
         task.run(runContext);
-        Search check_task = Commons.makeSearchTask("(|(description=Modified entry)(sn=Turanga)(cn=Hermes Conrad))", "dc=planetexpress,dc=com", Arrays.asList("description", "givenName", "employeeType", "cn"), ldap);
+        Search check_task = Commons
+            .makeSearchTask("(|(description=Modified entry)(sn=Turanga)(cn=Hermes Conrad))", "dc=planetexpress,dc=com", Arrays.asList("description", "givenName", "employeeType", "cn"), ldap);
         Search.Output search_result = check_task.run(runContext);
         System.out.println("CAUTION !! THIS TEST DEPENDS HEAVILY ON THE SEARCH TASK, CHECK THAT ALL --SEARCH TESTS-- PASSED.");
         Commons.assertResult(expected, search_result.getUri(), this.storageInterface);

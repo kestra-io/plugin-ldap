@@ -1,8 +1,18 @@
 package io.kestra.plugin.ldap;
 
+import java.io.File;
+import java.net.URI;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import org.slf4j.Logger;
+
 import com.unboundid.asn1.ASN1OctetString;
 import com.unboundid.ldap.sdk.*;
 import com.unboundid.ldap.sdk.controls.SimplePagedResultsControl;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
@@ -12,18 +22,11 @@ import io.kestra.core.models.executions.metrics.Timer;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.Builder.Default;
 import lombok.experimental.SuperBuilder;
-import org.slf4j.Logger;
-
-import java.io.File;
-import java.net.URI;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 @SuperBuilder
 @ToString
@@ -174,8 +177,7 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
                 request.setSizeLimit(rSizeLimit);
             }
 
-            boolean acceptSizeLimitExceeded =
-                (rSizeLimit != null) || (rPageSize != null && rPageSize > 0);
+            boolean acceptSizeLimitExceeded = (rSizeLimit != null) || (rPageSize != null && rPageSize > 0);
 
             long startTime = System.currentTimeMillis();
 
@@ -217,8 +219,7 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
         LDAPConnection connection,
         SearchRequest request,
         Logger logger,
-        boolean acceptSizeLimitExceeded
-    ) throws LDAPException {
+        boolean acceptSizeLimitExceeded) throws LDAPException {
         try {
             return connection.search(request);
         } catch (LDAPSearchException e) {
@@ -236,8 +237,7 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
         SearchRequest request,
         Logger logger,
         Integer pageSize,
-        boolean acceptSizeLimitExceeded
-    ) throws LDAPException {
+        boolean acceptSizeLimitExceeded) throws LDAPException {
 
         List<SearchResultEntry> entries = new ArrayList<>();
 
@@ -246,8 +246,10 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
                 connection, request, logger, acceptSizeLimitExceeded
             );
 
-            if (result.getResultCode() == ResultCode.SUCCESS ||
-                (acceptSizeLimitExceeded && result.getResultCode() == ResultCode.SIZE_LIMIT_EXCEEDED)) {
+            if (
+                result.getResultCode() == ResultCode.SUCCESS ||
+                    (acceptSizeLimitExceeded && result.getResultCode() == ResultCode.SIZE_LIMIT_EXCEEDED)
+            ) {
                 entries.addAll(result.getSearchEntries());
             }
 
@@ -263,8 +265,10 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
                 connection, request, logger, acceptSizeLimitExceeded
             );
 
-            if (pageResult.getResultCode() != ResultCode.SUCCESS &&
-                pageResult.getResultCode() != ResultCode.SIZE_LIMIT_EXCEEDED) {
+            if (
+                pageResult.getResultCode() != ResultCode.SUCCESS &&
+                    pageResult.getResultCode() != ResultCode.SIZE_LIMIT_EXCEEDED
+            ) {
                 logger.warn("Search failed, LDAP response : {}", pageResult.getResultString());
                 break;
             }

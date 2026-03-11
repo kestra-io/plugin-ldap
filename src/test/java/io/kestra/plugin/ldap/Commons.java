@@ -1,34 +1,34 @@
 package io.kestra.plugin.ldap;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.fail;
-
-import io.kestra.core.http.client.configurations.SslOptions;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.tenant.TenantService;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import com.google.common.collect.ImmutableMap;
 
+import io.kestra.core.http.client.configurations.SslOptions;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
+import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.IdUtils;
 
-import java.util.List;
-import java.util.HashMap;
-import java.util.Map;
-import java.net.URI;
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Provides common tools for the ldapManager plugin testing.
+ * 
  * @apiNote Contains immutable common values to test LDAP server responses to the plugin tasks.
  * @apiNote Provides common assertions tools and a SearchTask making function.
  */
@@ -49,15 +49,17 @@ final class Commons {
     public static final DockerImageName LDAP_IMAGE = DockerImageName.parse("rroemhild/test-openldap:2.1");
     /**
      * Ports that should be exposed to interact with the LDAP test server.
+     * 
      * @value [0] -> unsecure port
      * @value [1] -> SSL secure port
      */
-    public static final Integer[] EXPOSED_PORTS = {10389, 10636};
+    public static final Integer[] EXPOSED_PORTS = { 10389, 10636 };
     public static final String USER = "cn=admin,dc=planetexpress,dc=com";
     public static final String PASS = "GoodNewsEveryone";
 
     /**
      * Insert provided contents in separated files in the Kestra storage.
+     * 
      * @param contents : A list of string to input in Kestra files.
      * @param extension : Extension of the file.
      * @return A new context where each newly created file may be accessed with a pebble expression like {{ file0 }}, {{ file1 }}, {{ fileEtc }}
@@ -69,10 +71,10 @@ final class Commons {
             URI filePath;
             try {
                 filePath = storageInterface.put(
-                        TenantService.MAIN_TENANT,
-                        null,
-                        URI.create("/" + IdUtils.create() + extension),
-                        new ByteArrayInputStream(content.getBytes())
+                    TenantService.MAIN_TENANT,
+                    null,
+                    URI.create("/" + IdUtils.create() + extension),
+                    new ByteArrayInputStream(content.getBytes())
                 );
                 kestraPaths.put("file" + idx, filePath.toString());
                 idx++;
@@ -87,6 +89,7 @@ final class Commons {
 
     /**
      * Assert the equality between the result file content provided by a task and a string.
+     * 
      * @param expected : The string representing the expected content of the task output. May be null if expected return should be blank.
      * @param file : The outputted URI of the task to make the comparison with.
      * @param storageInterface : The StorageInterface that should contain the file.
@@ -112,6 +115,7 @@ final class Commons {
 
     /**
      * Assert the equality between result file(s) content provided by a task and string(s).
+     * 
      * @param expected_results : String(s) representing expected content(s) of the task output. May contain null member if expected return should be blank.
      * @param results : Outputted URI(s) of the task to make the comparison with.
      * @param storageInterface : The StorageInterface that should contain the file(s).
@@ -126,6 +130,7 @@ final class Commons {
 
     /**
      * Makes a Search task and sets its connecion options to the test LDAP server.
+     * 
      * @param filter : The filter to use for the search.
      * @param baseDn : The DN to search from.
      * @param attributes : The attributes to retrieve.
@@ -146,19 +151,20 @@ final class Commons {
 
     public static Search makeSslSearchTask(String filter, String baseDn, List<String> attributes, GenericContainer<?> ldap) {
         return Search.builder()
-                .hostname(Property.ofValue(ldap.getHost()))
-                .userDn(Property.ofValue(Commons.USER))
-                .password(Property.ofValue(Commons.PASS))
-                .baseDn(Property.ofValue(baseDn))
-                .filter(Property.ofValue(filter))
-                .attributes(Property.ofValue(attributes))
-                .port(Property.ofValue(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[1]))))
-                .sslOptions(SslOptions.builder().insecureTrustAllCertificates(Property.ofValue(true)).build())
-                .build();
+            .hostname(Property.ofValue(ldap.getHost()))
+            .userDn(Property.ofValue(Commons.USER))
+            .password(Property.ofValue(Commons.PASS))
+            .baseDn(Property.ofValue(baseDn))
+            .filter(Property.ofValue(filter))
+            .attributes(Property.ofValue(attributes))
+            .port(Property.ofValue(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[1]))))
+            .sslOptions(SslOptions.builder().insecureTrustAllCertificates(Property.ofValue(true)).build())
+            .build();
     }
 
     /**
      * Creates a list of pebble String referencing contents URI(s) created by a Commons.getRunContext call.
+     * 
      * @param x : The number of files provided to the previous call of Commons.getRunContext.
      * @return Pebble expression(s) like {{ file0 }}, {{ file1 }}, {{ fileEtc }}
      */

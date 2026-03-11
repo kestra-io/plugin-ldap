@@ -1,5 +1,15 @@
 package io.kestra.plugin.ldap;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestInstance.Lifecycle;
+import org.testcontainers.containers.GenericContainer;
+
 import io.kestra.core.http.client.configurations.SslOptions;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
@@ -8,18 +18,6 @@ import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
 
 import jakarta.inject.Inject;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance.Lifecycle;
-import org.junit.jupiter.api.TestInstance;
-
-import org.testcontainers.containers.GenericContainer;
-
 
 @KestraTest
 @TestInstance(value = Lifecycle.PER_CLASS)
@@ -51,6 +49,7 @@ public class AddTest {
 
     /**
      * Makes an Addition task and sets its connecion options to the test LDAP server.
+     * 
      * @param files : Kestra URI(s) of LDIF formated file(s) containing DN(s) and attributes.
      * @return A ready to run Addition task.
      */
@@ -99,18 +98,18 @@ public class AddTest {
     void addAndSearch_usingSsl() throws Exception {
         List<String> inputs = new ArrayList<>();
         String input = """
-        dn: cn=Complete SSL User,ou=people,dc=planetexpress,dc=com
-        objectClass: inetOrgPerson
-        cn: Complete SSL User
-        sn: CompleteSslUser
-        description: User added and verified entirely over SSL
-        employeeType: CEO
-        givenName: SecureCore
-        mail: complete.ssl.ceo@planetexpress.com
-        ou: Executive Wing
-        uid: ceoSecureUser
-        userPassword: ceoSecurePassword
-        """;
+            dn: cn=Complete SSL User,ou=people,dc=planetexpress,dc=com
+            objectClass: inetOrgPerson
+            cn: Complete SSL User
+            sn: CompleteSslUser
+            description: User added and verified entirely over SSL
+            employeeType: CEO
+            givenName: SecureCore
+            mail: complete.ssl.ceo@planetexpress.com
+            ou: Executive Wing
+            uid: ceoSecureUser
+            userPassword: ceoSecurePassword
+            """;
         inputs.add(input);
 
         RunContext runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);

@@ -186,7 +186,7 @@ public abstract class LdapConnection extends Task {
     }
 
     // Remove control characters from the string, as they can cause issues when logging or displaying error messages with POSTGRES BACKEND exceptions.
-    private static String sanitize(String s) {
+    static String sanitize(String s) {
         if (s == null) {
             return null;
         }

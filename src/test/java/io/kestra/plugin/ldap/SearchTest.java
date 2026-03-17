@@ -27,7 +27,10 @@ import io.kestra.core.tenant.TenantService;
 
 import jakarta.inject.Inject;
 
+import com.unboundid.ldap.sdk.LDAPException;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @KestraTest
@@ -142,6 +145,33 @@ public class SearchTest {
         // We expect at least the 1000 injected + whatever already existed in fixture
         // Assert we got our bulk data
         assertTrue(pagingCount >= 1000, "Paging should retrieve at least the 1000 injected entries");
+    }
+
+    @Test
+    void connection_error_message_is_sanitized() {
+        RunContext runContext = this.runContextFactory.of();
+
+        Search task = Search.builder()
+            .hostname(Property.ofValue(ldap.getHost()))
+            .port(Property.ofValue(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
+            .userDn(Property.ofValue(Commons.USER))
+            .password(Property.ofValue("wrong-password"))
+            .baseDn(Property.ofValue("dc=planetexpress,dc=com"))
+            .filter(Property.ofValue("(objectClass=*)"))
+            .attributes(Property.ofValue(Arrays.asList("cn")))
+            .build();
+
+        var exception = assertThrows(LDAPException.class, () -> task.run(runContext));
+
+        var message = exception.getMessage();
+        if (message != null) {
+            // Verify no null bytes
+            assertTrue(message.indexOf('\u0000') == -1, "Error message should not contain null bytes");
+            // Verify no control chars (except \n, \r, \t which are preserved)
+            var hasControlChars = message.chars()
+                .anyMatch(c -> (c >= 0x01 && c <= 0x08) || c == 0x0B || c == 0x0C || (c >= 0x0E && c <= 0x1F));
+            assertTrue(!hasControlChars, "Error message should not contain control characters");
+        }
     }
 
     private int countDnEntries(URI uri) throws Exception {

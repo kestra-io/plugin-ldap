@@ -1,6 +1,7 @@
 package io.kestra.plugin.ldap;
 
 import java.security.GeneralSecurityException;
+import java.util.List;
 
 import javax.net.ssl.SSLSocketFactory;
 
@@ -11,6 +12,7 @@ import com.unboundid.ldap.sdk.GSSAPIBindRequest;
 import com.unboundid.ldap.sdk.GSSAPIBindRequestProperties;
 import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPException;
+import com.unboundid.ldap.sdk.SASLQualityOfProtection;
 import com.unboundid.ldap.sdk.SimpleBindRequest;
 import com.unboundid.util.ssl.SSLUtil;
 import com.unboundid.util.ssl.TrustAllTrustManager;
@@ -90,6 +92,27 @@ public abstract class LdapConnection extends Task {
     )
     protected SslOptions sslOptions;
 
+    @Schema(
+        title = "saslAllowedQoP",
+        description = """
+            Used for GSSAPI authentication method only.
+            The list of allowed qualities of protection that may be used for communication
+            after authentication has completed, ordered from most preferred to least preferred.
+
+            By default, the full list is allowed, sorted from the most secure to the least secure:
+                - AUTH_CONF # This ensures that third-party observers will not be able to decipher communication between the client and server (i.e., that the communication will be encrypted).
+                - AUTH_INT     # This ensure that the communication cannot be altered in an undetectable manner.
+                - AUTH            # Only authentication is to be performed, with no integrity or confidentiality protection for subsequent communication.
+            """
+    )
+    @Builder.Default
+    private Property<List<SASLQualityOfProtection>> saslAllowedQoP =
+        Property.ofValue(List.of(
+            SASLQualityOfProtection.AUTH_CONF,
+            SASLQualityOfProtection.AUTH_INT,
+            SASLQualityOfProtection.AUTH
+        ));
+
     /**
      * Opens a connection with user provided informations.
      *
@@ -133,6 +156,10 @@ public abstract class LdapConnection extends Task {
                         gssapiProperties.setRealm(realmProperty);
                     }
 
+                    gssapiProperties.setAllowedQoP(
+                        runContext.render(saslAllowedQoP).asList(SASLQualityOfProtection.class)
+                    );
+                    gssapiProperties.setRefreshKrb5Config(true);
                     bindRequest = new GSSAPIBindRequest(gssapiProperties);
                     break;
                 default:
@@ -141,9 +168,31 @@ public abstract class LdapConnection extends Task {
             connection.bind(bindRequest);
             return connection;
         } catch (LDAPException e) {
-            logger.error("LDAP connextion error: {}", e.getResultString());
-            throw e;
+            logger.error(
+                """
+                LDAP connection/bind failed
+                - resultCode        : {}
+                - diagnosticMessage : {}
+                - resultString      : {}
+                - message           : {}
+                """,
+                String.valueOf(e.getResultCode()),
+                sanitize(e.getDiagnosticMessage()),
+                sanitize(e.getResultString()),
+                sanitize(e.getMessage())
+            );
+            throw new LDAPException( e.getResultCode(), sanitize(e.getMessage()), e );
         }
+    }
+
+    // Remove control characters from the string, as they can cause issues when logging or displaying error messages with POSTGRES BACKEND exceptions.
+    static String sanitize(String s) {
+        if (s == null) {
+            return null;
+        }
+        return s
+            .replace("\u0000", "")
+            .replaceAll("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]", "?");
     }
 
     public LDAPConnection createLdapConnection(String hostname, int port, boolean trustAllCertificates) throws LDAPException, GeneralSecurityException {

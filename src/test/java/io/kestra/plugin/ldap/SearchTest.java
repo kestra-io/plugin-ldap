@@ -86,7 +86,7 @@ public class SearchTest {
 
         Search task = Search.builder()
             .hostname(Property.ofValue(ldap.getHost()))
-            .port(Property.ofValue(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[0]))))
+            .port(Property.ofValue(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
             .userDn(Property.ofValue(Commons.USER))
             .password(Property.ofValue(Commons.PASS))
             .baseDn(Property.ofValue(baseDn))
@@ -127,7 +127,7 @@ public class SearchTest {
 
         Search pagingTask = Search.builder()
             .hostname(Property.ofValue(ldap.getHost()))
-            .port(Property.ofValue(String.valueOf(ldap.getMappedPort(Commons.EXPOSED_PORTS[0]))))
+            .port(Property.ofValue(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
             .userDn(Property.ofValue(Commons.USER))
             .password(Property.ofValue(Commons.PASS))
             .baseDn(Property.ofValue(baseDn))

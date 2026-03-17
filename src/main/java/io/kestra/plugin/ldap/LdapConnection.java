@@ -44,7 +44,7 @@ public abstract class LdapConnection extends Task {
         description = "A whole number describing the port for connection."
     )
     @NotNull
-    protected Property<String> port;
+    protected Property<Integer> port;
 
     @Schema(
         title = "User",
@@ -72,7 +72,6 @@ public abstract class LdapConnection extends Task {
         title = "Kerberos key distribution center",
         description = """
             Needed for GSSAPI authentication method.
-            If set, property realm must be set too.
             If this is not provided, an attempt will be made to determine the appropriate value from the system configuration."""
     )
     protected Property<String> kdc;
@@ -81,7 +80,6 @@ public abstract class LdapConnection extends Task {
         title = "Realm",
         description = """
             Needed for GSSAPI authentication method.
-            If set, property kdc must be set too.
             If this is not provided, an attempt will be made to determine the appropriate value from the system configuration."""
     )
     protected Property<String> realm;
@@ -107,7 +105,7 @@ public abstract class LdapConnection extends Task {
         try {
             LDAPConnection connection = createLdapConnection(
                 runContext.render(hostname).as(String.class).orElseThrow(),
-                Integer.parseInt(runContext.render(port).as(String.class).orElseThrow()),
+                (runContext.render(port).as(Integer.class).orElseThrow()),
                 trustAllCertificates
             );
             BindRequest bindRequest;
@@ -127,13 +125,6 @@ public abstract class LdapConnection extends Task {
                         runContext.render(userDn).as(String.class).orElse(null),
                         runContext.render(password).as(String.class).orElse(null)
                     );
-
-                    if (
-                        (kdcProperty == null && realmProperty != null) ||
-                            (kdcProperty != null && realmProperty == null)
-                    ) {
-                        throw new IllegalArgumentException("Property kdc and realm both must be set or neither must be set.");
-                    }
 
                     if (kdcProperty != null) {
                         gssapiProperties.setKDCAddress(kdcProperty);

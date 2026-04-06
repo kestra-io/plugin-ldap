@@ -87,6 +87,7 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
         description = "Filter for the search in the LDAP."
     )
     @Default
+    @PluginProperty(group = "processing")
     private Property<String> filter = Property.ofValue("(objectclass=*)");
 
     @Schema(
@@ -96,6 +97,7 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
             """
     )
     @Default
+    @PluginProperty(group = "advanced")
     private Property<List<String>> attributes = Property.ofValue(Collections.singletonList(SearchRequest.ALL_USER_ATTRIBUTES));
 
     @Schema(
@@ -103,6 +105,7 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
         description = "Search root DN; defaults to ou=system."
     )
     @Default
+    @PluginProperty(group = "advanced")
     private Property<String> baseDn = Property.ofValue("ou=system");
 
     @Schema(
@@ -112,7 +115,7 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
             """
     )
     @Default
-    @PluginProperty
+    @PluginProperty(group = "advanced")
     private SearchScope sub = SearchScope.SUB;
 
     @Schema(
@@ -121,6 +124,7 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
             Maximum number of entries to return; truncates results when hit and accepts SIZE_LIMIT_EXCEEDED responses. Leave blank to use the server default.
             """
     )
+    @PluginProperty(group = "processing")
     private Property<Integer> sizeLimit;
 
     @Schema(
@@ -134,6 +138,7 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
             - Consequence: no truncation, but potentially more requests and longer execution time.
             """
     )
+    @PluginProperty(group = "advanced")
     private Property<Integer> pageSize;
 
     @Builder

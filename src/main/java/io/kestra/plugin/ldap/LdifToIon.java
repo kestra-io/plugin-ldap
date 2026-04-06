@@ -160,7 +160,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
         title = "LDIF input URIs",
         description = "URIs to LDIF files in internal storage; entries and change records are converted in order."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @NotNull
     private List<String> inputs;
 

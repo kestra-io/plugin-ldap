@@ -159,7 +159,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
         title = "Ion input URIs",
         description = "URIs to Ion files in internal storage; each entry or change record is translated to LDIF."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @NotNull
     private List<String> inputs;
 

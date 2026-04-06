@@ -29,6 +29,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @Getter
@@ -39,6 +40,7 @@ public abstract class LdapConnection extends Task {
         description = "Hostname for connection."
     )
     @NotNull
+    @PluginProperty(group = "main")
     protected Property<String> hostname;
 
     @Schema(
@@ -46,6 +48,7 @@ public abstract class LdapConnection extends Task {
         description = "A whole number describing the port for connection."
     )
     @NotNull
+    @PluginProperty(group = "main")
     protected Property<Integer> port;
 
     @Schema(
@@ -53,6 +56,7 @@ public abstract class LdapConnection extends Task {
         description = "Username for connection."
     )
     @NotNull
+    @PluginProperty(group = "main")
     protected Property<String> userDn;
 
     @Schema(
@@ -60,6 +64,7 @@ public abstract class LdapConnection extends Task {
         description = "User password for connection."
     )
     @NotNull
+    @PluginProperty(group = "main")
     protected Property<String> password;
 
     @Schema(
@@ -68,6 +73,7 @@ public abstract class LdapConnection extends Task {
         allowableValues = { "simple", "gssapi" }
     )
     @Builder.Default
+    @PluginProperty(group = "connection")
     protected Property<String> authMethod = Property.ofValue("simple");
 
     @Schema(
@@ -76,6 +82,7 @@ public abstract class LdapConnection extends Task {
             Needed for GSSAPI authentication method.
             If this is not provided, an attempt will be made to determine the appropriate value from the system configuration."""
     )
+    @PluginProperty(group = "advanced")
     protected Property<String> kdc;
 
     @Schema(
@@ -84,12 +91,14 @@ public abstract class LdapConnection extends Task {
             Needed for GSSAPI authentication method.
             If this is not provided, an attempt will be made to determine the appropriate value from the system configuration."""
     )
+    @PluginProperty(group = "advanced")
     protected Property<String> realm;
 
     @Schema(
         title = "SSL Configuration",
         description = "Configure SSL/LDAPS connection parameters."
     )
+    @PluginProperty(group = "connection")
     protected SslOptions sslOptions;
 
     @Schema(
@@ -106,6 +115,7 @@ public abstract class LdapConnection extends Task {
             """
     )
     @Builder.Default
+    @PluginProperty(group = "connection")
     private Property<List<SASLQualityOfProtection>> saslAllowedQoP =
         Property.ofValue(List.of(
             SASLQualityOfProtection.AUTH_CONF,

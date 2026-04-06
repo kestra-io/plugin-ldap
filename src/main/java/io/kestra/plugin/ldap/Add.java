@@ -94,7 +94,7 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
         title = "LDIF input URIs",
         description = "One or more URIs to LDIF files in internal storage; every entry is attempted separately and errors are logged without stopping the task."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @NotNull
     private List<String> inputs;
 

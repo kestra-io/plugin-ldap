@@ -93,7 +93,7 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
         title = "LDIF input URIs",
         description = "URIs to LDIF files whose entries provide the target DNs to delete; each DN is deleted separately and failures do not stop the task."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @NotNull
     private List<String> inputs;
 

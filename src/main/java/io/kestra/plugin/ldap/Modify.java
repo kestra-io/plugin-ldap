@@ -92,7 +92,7 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
         title = "LDIF change URIs",
         description = "URIs to LDIF files containing changeType records; each record is processed in order and errors on a record do not stop the remaining operations."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @NotNull
     private List<String> inputs;
 

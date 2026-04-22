@@ -58,7 +58,7 @@ import lombok.experimental.SuperBuilder;
                     type: io.kestra.plugin.ldap.Add
                     description: What your task is supposed to do and why.
                     userDn: cn=admin,dc=orga,dc=en
-                    password: admin
+                    password: "{{ secret('LDAP_PASSWORD') }}"
                     inputs:
                        - "{{outputs.someTask.uri_of_ldif_formated_file}}"
                     hostname: 0.0.0.0

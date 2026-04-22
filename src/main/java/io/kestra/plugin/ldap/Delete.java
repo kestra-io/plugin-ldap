@@ -58,7 +58,7 @@ import lombok.experimental.SuperBuilder;
                     type: io.kestra.plugin.ldap.Delete
                     description: What your task is supposed to do and why.
                     userDn: cn=admin,dc=orga,dc=fr
-                    password: admin
+                    password: "{{ secret('LDAP_PASSWORD') }}"
                     inputs:
                        - "{{ outputs.some_task.uri_of_ldif_formated_file }}"
                     hostname: 0.0.0.0

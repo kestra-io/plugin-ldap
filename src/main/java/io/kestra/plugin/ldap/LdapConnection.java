@@ -56,7 +56,7 @@ public abstract class LdapConnection extends Task {
         description = "Username for connection."
     )
     @NotNull
-    @PluginProperty(group = "main")
+    @PluginProperty(group = "main", secret = true)
     protected Property<String> userDn;
 
     @Schema(
@@ -64,7 +64,7 @@ public abstract class LdapConnection extends Task {
         description = "User password for connection."
     )
     @NotNull
-    @PluginProperty(group = "main")
+    @PluginProperty(group = "main", secret = true)
     protected Property<String> password;
 
     @Schema(

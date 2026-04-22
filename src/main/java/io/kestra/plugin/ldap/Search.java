@@ -56,7 +56,7 @@ import lombok.experimental.SuperBuilder;
                   - id: search
                     type: io.kestra.plugin.ldap.Search
                     userDn: cn=admin,dc=orga,dc=en
-                    password: admin
+                    password: "{{ secret('LDAP_PASSWORD') }}"
                     baseDn: ou=people,dc=orga,dc=en
                     filter: (|(sn=melusine*)(sn=metatron*))
                     attributes:

@@ -57,7 +57,7 @@ import lombok.experimental.SuperBuilder;
                   - id: modify
                     type: io.kestra.plugin.ldap.Modify
                     userDn: cn=admin,dc=orga,dc=en
-                    password: admin
+                    password: "{{ secret('LDAP_PASSWORD') }}"
                     inputs:
                        - "{{ outputs.some_task.uri_of_ldif_change_record_formated_file }}"
                     hostname: 0.0.0.0

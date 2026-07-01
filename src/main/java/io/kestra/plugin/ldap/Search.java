@@ -84,7 +84,10 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
 
     @Schema(
         title = "Filter",
-        description = "Filter for the search in the LDAP."
+        description = "Filter for the search in the LDAP. Must be a complete, syntactically valid LDAP filter " +
+            "expression (RFC 4515); it is parsed and validated before use. Avoid interpolating untrusted, " +
+            "unescaped values into this filter (e.g. via Pebble expressions), as doing so can allow LDAP filter " +
+            "injection (CWE-90)."
     )
     @Default
     @PluginProperty(group = "processing")
@@ -169,10 +172,25 @@ public class Search extends LdapConnection implements RunnableTask<Search.Output
         try (LDAPConnection connection = this.getLdapConnection(runContext)) {
             rFilter = rFilter.replaceAll("\n\\s*", "");
 
+            // Parse and validate the rendered filter through UnboundID's Filter parser instead of passing the raw
+            // string straight to SearchRequest. This rejects malformed/injected LDAP filter syntax (CWE-90 LDAP
+            // Injection) that could otherwise smuggle in additional filter components (e.g. via an unescaped
+            // attribute value interpolated into the filter expression at the workflow level) and alter the
+            // intended search semantics.
+            Filter parsedFilter;
+            try {
+                parsedFilter = Filter.create(rFilter);
+            } catch (LDAPException e) {
+                throw new IllegalArgumentException(
+                    String.format("Invalid LDAP search filter \"%s\": %s", rFilter, e.getMessage()),
+                    e
+                );
+            }
+
             SearchRequest request = new SearchRequest(
                 rBaseDn,
                 sub,
-                rFilter,
+                parsedFilter,
                 rAttributes.contains("0.0")
                     ? SearchRequest.REQUEST_ATTRS_DEFAULT
                     : rAttributes.toArray(new String[0])

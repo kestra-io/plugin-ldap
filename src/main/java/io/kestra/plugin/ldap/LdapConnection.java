@@ -135,6 +135,15 @@ public abstract class LdapConnection extends Task {
         String authMethodProperty = runContext.render(authMethod).as(String.class).orElse("simple");
         final boolean trustAllCertificates = sslOptions != null && runContext.render(sslOptions.getInsecureTrustAllCertificates()).as(Boolean.class).orElse(false);
 
+        if (trustAllCertificates) {
+            logger.warn(
+                "LDAP connection is configured with insecureTrustAllCertificates=true: TLS certificate validation " +
+                "is DISABLED for this connection. This accepts any certificate regardless of issuer, expiry, or " +
+                "hostname, and exposes bind credentials and directory data to man-in-the-middle interception. " +
+                "This option must only be used for local development/testing and never in production."
+            );
+        }
+
         try {
             LDAPConnection connection = createLdapConnection(
                 runContext.render(hostname).as(String.class).orElseThrow(),
@@ -205,6 +214,17 @@ public abstract class LdapConnection extends Task {
             .replaceAll("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]", "?");
     }
 
+    /**
+     * Opens a raw LDAPConnection to the given host/port.
+     *
+     * @param trustAllCertificates DANGEROUS: when {@code true}, disables TLS certificate validation entirely
+     *                              (accepts any certificate regardless of issuer, expiry, or hostname) via
+     *                              UnboundID's {@link TrustAllTrustManager}. This must only ever be used for
+     *                              local development/testing — never in production — since it allows trivial
+     *                              man-in-the-middle interception of LDAP credentials and directory data.
+     *                              Callers are expected to surface a loud warning to the user when this is enabled
+     *                              (see {@link #getLdapConnection(RunContext)}).
+     */
     public LDAPConnection createLdapConnection(String hostname, int port, boolean trustAllCertificates) throws LDAPException, GeneralSecurityException {
         LDAPConnection connection;
 

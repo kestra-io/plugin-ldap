@@ -76,65 +76,6 @@ import lombok.experimental.SuperBuilder;
                       - "{{ inputs.file1 }}"
                       - "{{ inputs.file2 }}"
                 """
-        ),
-        @io.kestra.core.models.annotations.Example(
-            title = "INPUT example: here's an ION file content that may be inputted :",
-            code = {
-                """
-                    # simple entry
-                    {dn:"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Some description","Some other description"],someOtherAttribute:["perhaps","perhapsAgain"]}}
-                    # modify changeRecord
-                    {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"modify",modifications:[{operation:"DELETE",attribute:"description",values:["Some description 3"]},{operation:"ADD",attribute:"description",values:["Some description 4"]},{operation:"REPLACE",attribute:"someOtherAttribute",values:["Loves herself more"]}]}
-                    # delete changeRecord
-                    {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"delete"}
-                    # moddn changeRecord (it is mandatory to specify a newrdn and a deleteoldrdn)
-                    {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:false,newsuperior:"ou=expeople,dc=example,dc=com"}}
-                    # moddn changeRecord without new superior (it is optional to specify a new superior field)
-                    {dn:"cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:true}}
-                    """ },
-            full = true
-        ),
-        @io.kestra.core.models.annotations.Example(
-            title = "OUTPUT example: here's an LDIF file content that may be outputted :",
-            code = { """
-                # simple entry
-                dn: cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com
-                description: Some description
-                someOtherAttribute: perhaps
-                description: Some other description
-                someOtherAttribute: perhapsAgain
-
-                # modify changeRecord
-                dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
-                changetype: modify
-                delete: description
-                description: Some description 3
-                -
-                add: description
-                description: Some description 4
-                -
-                replace: someOtherAttribute
-                someOtherAttribute: Loves herself more
-                -
-
-                # delete changeRecord
-                dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
-                changetype: delete
-
-                # moddn with new superior
-                dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
-                changetype: moddn
-                newrdn: cn=triss@orga.com
-                deleteoldrdn: 0
-                newsuperior: ou=expeople,dc=example,dc=com
-
-                # moddn without new superior
-                dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
-                changetype: moddn
-                newrdn: cn=triss@orga.com
-                deleteoldrdn: 1
-                """ },
-            full = true
         )
     },
     metrics = {
@@ -157,7 +98,21 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
 
     @Schema(
         title = "Ion input URIs",
-        description = "URIs to Ion files in internal storage; each entry or change record is translated to LDIF."
+        description = """
+            URIs to Ion files in internal storage; each entry or change record is translated to LDIF.
+
+            Example of an ION file content that may be inputted:
+            ```
+            # simple entry
+            {dn:"cn=bob@orga.com,...",attributes:{description:["Some description","Some other description"]}}
+            # modify changeRecord
+            {dn:"cn=triss@orga.com,...",changeType:"modify",modifications:[{operation:"DELETE",attribute:"description",values:["Some description 3"]}]}
+            # delete changeRecord
+            {dn:"cn=triss@orga.com,...",changeType:"delete"}
+            # moddn changeRecord (newrdn and deleteoldrdn are mandatory, newsuperior optional)
+            {dn:"cn=triss@orga.com,...",changeType:"moddn",newDn:{newrdn:"cn=triss@orga.com",deleteoldrdn:false,newsuperior:"ou=expeople,dc=example,dc=com"}}
+            ```
+            """
     )
     @PluginProperty(dynamic = true, group = "main")
     @NotNull
@@ -172,7 +127,33 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
             title = "LDIF output URIs",
-            description = "URIs in internal storage for the generated LDIF files."
+            description = """
+                URIs in internal storage for the generated LDIF files.
+
+                Example of an LDIF file content that may be outputted:
+                ```
+                # simple entry
+                dn: cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com
+                description: Some description
+
+                # modify changeRecord
+                dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+                changetype: modify
+                delete: description
+                description: Some description 3
+                -
+
+                # delete changeRecord
+                dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+                changetype: delete
+
+                # moddn (newrdn, then deleteoldrdn, then optional newsuperior)
+                dn: cn=triss@orga.com,ou=diffusion_list,dc=orga,dc=com
+                changetype: moddn
+                newrdn: cn=triss@orga.com
+                deleteoldrdn: 1
+                ```
+                """
         )
         private final List<URI> urisList;
     }

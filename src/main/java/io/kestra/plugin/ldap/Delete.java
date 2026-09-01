@@ -141,7 +141,7 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
             Long meanTime = this.deletionsTimes.stream().mapToLong(Long::longValue).sum() / this.deletionsDone;
             runContext.metric(Timer.of("deletions.mean.time", Duration.ofMillis(meanTime), "origin", "Delete"));
         }
-        return new VoidOutput();
+        return null;
     }
 
     /**

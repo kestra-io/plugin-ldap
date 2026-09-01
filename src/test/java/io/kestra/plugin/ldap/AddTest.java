@@ -19,6 +19,9 @@ import io.kestra.core.storages.StorageInterface;
 
 import jakarta.inject.Inject;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.nullValue;
+
 @KestraTest
 @TestInstance(value = Lifecycle.PER_CLASS)
 public class AddTest {
@@ -87,7 +90,8 @@ public class AddTest {
 
         RunContext runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
         Add task = makeTask(Commons.makeKestraPebblesForXFiles(inputs.size()));
-        task.run(runContext);
+        // Add has no output: run() must return null, not VoidOutput, or Jackson serialization fails on the worker and the execution hangs in RUNNING.
+        assertThat(task.run(runContext), nullValue());
         Search check_task = Commons.makeSearchTask("(sn=Input)", "dc=planetexpress,dc=com", new ArrayList<String>(), ldap);
         Search.Output search_result = check_task.run(runContext);
         System.out.println("CAUTION !! THIS TEST DEPENDS HEAVILY ON THE SEARCH TASK, CHECK THAT ALL --SEARCH TESTS-- PASSED.");
@@ -115,7 +119,7 @@ public class AddTest {
         RunContext runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
 
         Add addTask = makeSslTask(Commons.makeKestraPebblesForXFiles(inputs.size()));
-        addTask.run(runContext);
+        assertThat(addTask.run(runContext), nullValue());
         Search check_task = Commons.makeSslSearchTask("(sn=CompleteSslUser)", "dc=planetexpress,dc=com", new ArrayList<String>(), ldap);
         Search.Output searchResult = check_task.run(runContext);
         Commons.assertResult(input, searchResult.getUri(), storageInterface);

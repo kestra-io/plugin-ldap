@@ -19,6 +19,9 @@ import io.kestra.core.storages.StorageInterface;
 
 import jakarta.inject.Inject;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.nullValue;
+
 @KestraTest
 @TestInstance(value = Lifecycle.PER_CLASS)
 public class ModifyTest {
@@ -107,7 +110,8 @@ public class ModifyTest {
 
         RunContext runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
         Modify task = makeTask(Commons.makeKestraPebblesForXFiles(inputs.size()));
-        task.run(runContext);
+        // Modify has no output: run() must return null, not VoidOutput, or Jackson serialization fails on the worker and the execution hangs in RUNNING.
+        assertThat(task.run(runContext), nullValue());
         Search check_task = Commons
             .makeSearchTask("(|(description=Modified entry)(sn=Turanga)(cn=Hermes Conrad))", "dc=planetexpress,dc=com", Arrays.asList("description", "givenName", "employeeType", "cn"), ldap);
         Search.Output search_result = check_task.run(runContext);

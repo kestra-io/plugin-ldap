@@ -19,6 +19,9 @@ import io.kestra.core.storages.StorageInterface;
 
 import jakarta.inject.Inject;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.nullValue;
+
 @KestraTest
 @TestInstance(value = Lifecycle.PER_CLASS)
 public class DeleteTest {
@@ -75,7 +78,8 @@ public class DeleteTest {
 
         RunContext runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
         Delete task = makeTask(Commons.makeKestraPebblesForXFiles(inputs.size()));
-        task.run(runContext);
+        // Delete has no output: run() must return null, not VoidOutput, or Jackson serialization fails on the worker and the execution hangs in RUNNING.
+        assertThat(task.run(runContext), nullValue());
         Search check_task = Commons.makeSearchTask("(sn=Fry)", "dc=planetexpress,dc=com", Arrays.asList("sn"), ldap);
         Search.Output search_result = check_task.run(runContext);
         System.out.println("CAUTION !! THIS TEST DEPENDS HEAVILY ON THE SEARCH TASK, CHECK THAT ALL --SEARCH TESTS-- PASSED.");

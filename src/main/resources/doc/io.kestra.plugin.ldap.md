@@ -4,7 +4,7 @@ Add, modify, delete, and search LDAP directory entries, and convert between LDIF
 
 ## Authentication
 
-Set `hostname` (required), `port` (required), `userDn` (required), and `password` (required) on every connection task. The default `authMethod` is `simple` (username/password bind). For Kerberos/GSSAPI authentication, set `authMethod` to `GSSAPI` and optionally configure `kdc`, `realm`, and `saslAllowedQoP`. Configure SSL/TLS via the `sslOptions` object. Store secrets in [secrets](https://kestra.io/docs/concepts/secret) and apply connection properties globally with [plugin defaults](https://kestra.io/docs/workflow-components/plugin-defaults).
+Set `hostname` (required), `port` (required), `userDn` (required), and `password` (required) on every connection task. The default `authMethod` is `simple` (username/password bind). For Kerberos/GSSAPI authentication, set `authMethod` to `GSSAPI` and optionally configure `kdc`, `realm`, and `saslAllowedQoP`. Configure SSL/TLS via the `sslOptions` object. Store secrets in [secrets](https://kestra.io/docs/concepts/secret) and set connection properties on each task.
 
 ## Tasks
 

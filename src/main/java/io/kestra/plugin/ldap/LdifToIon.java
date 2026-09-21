@@ -46,6 +46,10 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.models.WorkerJobLifecycle;
+import io.kestra.core.exceptions.KilledException;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @SuperBuilder
 @ToString
@@ -94,7 +98,30 @@ import lombok.experimental.SuperBuilder;
         )
     }
 )
-public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
+public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output>, WorkerJobLifecycle {
+
+    // Never reset in run(): each attempt gets a fresh instance, so a reset could only drop a just-delivered kill.
+    @JsonIgnore
+    @Getter(AccessLevel.NONE)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    @Builder.Default
+    private final AtomicBoolean isCancelled = new AtomicBoolean(false);
+
+    @Override
+    public void kill() {
+        this.isCancelled.set(true);
+    }
+
+    // stop() stays the WorkerJobLifecycle no-op: the conversion is re-runnable, so letting core resubmit beats
+    // failing a deploy. See LdapConnection for the same reasoning.
+
+    private void throwIfCancelled() {
+        if (this.isCancelled.get()) {
+            throw new KilledException("LDIF to ION conversion was cancelled");
+        }
+    }
+
     /**
      * INPUTS ------------------------------------------------------------------------------------------------------------------- //
      **/
@@ -189,8 +216,12 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
         List<URI> storedResults = new ArrayList<>();
 
         for (String path : this.inputs) {
+            throwIfCancelled();
             try {
                 storedResults.add(transformLdifToIon(path, runContext));
+            } catch (KilledException e) {
+                // The per-file catch is a blanket Exception and would otherwise swallow the cancellation.
+                throw e;
             } catch (Exception e) {
                 this.logger.error(e.getMessage());
             }
@@ -239,6 +270,8 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
     @SuppressWarnings("null")
     private void processEntries(LDIFReader ldifReader, IonWriter ionWriter) throws IllegalArgumentException {
         while (true) {
+            throwIfCancelled();
+
             String[] record = null;
             Entry entry = null;
             LDIFChangeRecord changeRecord = null;

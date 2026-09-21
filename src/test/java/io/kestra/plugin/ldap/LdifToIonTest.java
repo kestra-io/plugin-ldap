@@ -14,6 +14,8 @@ import io.kestra.core.tenant.TenantService;
 import jakarta.inject.Inject;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import io.kestra.core.exceptions.KilledException;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @KestraTest
 public class LdifToIonTest {
@@ -22,6 +24,23 @@ public class LdifToIonTest {
 
     @Inject
     private StorageInterface storageInterface;
+
+    @Test
+    void killed_before_run_converts_nothing() throws Exception {
+        List<String> inputs = new ArrayList<>();
+        inputs.add("""
+            dn: cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com
+            description: Some description 1""");
+
+        RunContext runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
+        LdifToIon task = LdifToIon.builder().inputs(Commons.makeKestraPebblesForXFiles(inputs.size())).build();
+
+        task.kill();
+
+        // The per-file catch is a blanket Exception: without the re-throw guard this would be logged and the
+        // conversion would carry on to the next file.
+        assertThrows(KilledException.class, () -> task.run(runContext));
+    }
 
     @Test
     void basic_test() throws Exception {

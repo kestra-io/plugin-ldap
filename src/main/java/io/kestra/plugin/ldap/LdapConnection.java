@@ -30,11 +30,40 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import io.kestra.core.models.annotations.PluginProperty;
+import lombok.AccessLevel;
+import io.kestra.core.models.WorkerJobLifecycle;
+import io.kestra.core.exceptions.KilledException;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @SuperBuilder
 @Getter
 @NoArgsConstructor
-public abstract class LdapConnection extends Task {
+public abstract class LdapConnection extends Task implements WorkerJobLifecycle {
+
+    // Only @Getter(AccessLevel.NONE) and @JsonIgnore are live here: this class declares no @ToString or
+    // @EqualsAndHashCode, so those exclusions would be no-ops.
+    // Never reset in run(): each attempt gets a fresh instance, so a reset could only drop a just-delivered kill.
+    @JsonIgnore
+    @Getter(AccessLevel.NONE)
+    @Builder.Default
+    private final AtomicBoolean isCancelled = new AtomicBoolean(false);
+
+    @Override
+    public void kill() {
+        this.isCancelled.set(true);
+    }
+
+    // stop() stays the WorkerJobLifecycle no-op. It is the graceful drain signal and does not set killedState,
+    // so a task ending itself there is emitted as a real failure rather than resubmitted. These tasks log and
+    // skip per-entry failures, so letting core resubmit converges instead of failing a deploy.
+
+    protected void throwIfCancelled(String message) {
+        if (this.isCancelled.get()) {
+            throw new KilledException(message);
+        }
+    }
+
     @Schema(
         title = "Hostname",
         description = "Hostname for connection."

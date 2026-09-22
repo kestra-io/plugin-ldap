@@ -34,6 +34,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.exceptions.KilledException;
 
 @SuperBuilder
 @ToString
@@ -124,8 +125,11 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
 
         try (LDAPConnection connection = this.getLdapConnection(runContext)) {
             for (String inputUri : inputs) {
+                this.throwIfCancelled("LDAP modifications were cancelled");
                 try (LDIFReader reader = Utils.getLDIFReaderFromUri(inputUri, runContext)) {
                     processEntries(reader, connection);
+                } catch (KilledException e) {
+                    throw e;
                 } catch (Exception e) {
                     this.logger.error("Error reading LDIF file {} : {}", inputUri, e.getMessage());
                 }
@@ -151,6 +155,8 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
      */
     private void processEntries(LDIFReader reader, LDAPConnection connection) throws LDAPException, IOException, LDIFException {
         while (true) {
+            this.throwIfCancelled("LDAP modifications were cancelled");
+
             LDIFChangeRecord entry = null;
             try {
                 entry = reader.readChangeRecord();

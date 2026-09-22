@@ -98,7 +98,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
         )
     }
 )
-public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output>, WorkerJobLifecycle {
+public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
 
     // Never reset in run(): each attempt gets a fresh instance, so a reset could only drop a just-delivered kill.
     @JsonIgnore

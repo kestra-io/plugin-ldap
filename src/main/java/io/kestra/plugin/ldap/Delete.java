@@ -35,6 +35,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.exceptions.KilledException;
 
 @SuperBuilder
 @ToString
@@ -125,8 +126,11 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
 
         try (LDAPConnection connection = this.getLdapConnection(runContext)) {
             for (String file : inputs) {
+                this.throwIfCancelled("LDAP deletions were cancelled");
                 try (LDIFReader reader = Utils.getLDIFReaderFromUri(file, runContext)) {
                     processEntries(reader, connection);
+                } catch (KilledException e) {
+                    throw e;
                 } catch (Exception e) {
                     this.logger.warn("Unable to process file {} completly : {}", file, e.getMessage());
                 }
@@ -152,6 +156,8 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
      */
     private void processEntries(LDIFReader reader, LDAPConnection connection) throws IOException {
         while (true) {
+            this.throwIfCancelled("LDAP deletions were cancelled");
+
             Entry entry = null;
             try {
                 entry = reader.readEntry();

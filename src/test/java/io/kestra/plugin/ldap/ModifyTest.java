@@ -62,7 +62,7 @@ public class ModifyTest {
             .port(Property.ofValue(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
             .userDn(Property.ofValue(Commons.USER))
             .password(Property.ofValue((Commons.PASS)))
-            .inputs(files)
+            .inputs(Property.ofValue(files))
             .build();
     }
 
@@ -117,5 +117,110 @@ public class ModifyTest {
         Search.Output search_result = check_task.run(runContext);
         System.out.println("CAUTION !! THIS TEST DEPENDS HEAVILY ON THE SEARCH TASK, CHECK THAT ALL --SEARCH TESTS-- PASSED.");
         Commons.assertResult(expected, search_result.getUri(), this.storageInterface);
+    }
+
+    /**
+     * Tests that inputs resolves a list of per-element expressions (two Pebble URIs) from runContext variables,
+     * and both LDIF change records are applied to LDAP.
+     */
+    @Test
+    void multi_uri_test() throws Exception {
+        List<String> ldifContents = new ArrayList<>();
+
+        // File 0: modify description on Philip J. Fry
+        ldifContents.add("""
+            dn: cn=Philip J. Fry,ou=people,dc=planetexpress,dc=com
+            changeType: modify
+            replace: description
+            description: Multi URI test file 0
+            -
+            """);
+
+        // File 1: modify description on Amy Wong
+        ldifContents.add("""
+            dn: cn=Amy Wong+sn=Kroker,ou=people,dc=planetexpress,dc=com
+            changeType: modify
+            replace: description
+            description: Multi URI test file 1
+            -
+            """);
+
+        RunContext runContext = Commons.getRunContext(ldifContents, ".ldif", storageInterface, runContextFactory);
+        // makeKestraPebblesForXFiles(2) returns ["{{file0}}", "{{file1}}"]
+        Modify task = makeTask(Commons.makeKestraPebblesForXFiles(ldifContents.size()));
+        assertThat(task.run(runContext), nullValue());
+
+        // Verify both modifications were applied
+        Search check = Commons.makeSearchTask(
+            "(description=Multi URI test file*)",
+            "dc=planetexpress,dc=com",
+            Arrays.asList("description"),
+            ldap
+        );
+        Search.Output result = check.run(runContext);
+        // Both entries should match: we expect exactly two results
+        String expected = """
+            dn: cn=Amy Wong+sn=Kroker,ou=people,dc=planetexpress,dc=com
+            description: Multi URI test file 1
+
+            dn: cn=Philip J. Fry,ou=people,dc=planetexpress,dc=com
+            description: Multi URI test file 0
+            """;
+        Commons.assertResult(expected, result.getUri(), this.storageInterface);
+    }
+
+    /**
+     * Tests that a single expression rendering to an entire array of URIs works.
+     */
+    @Test
+    void whole_array_expression_test() throws Exception {
+        List<String> ldifContents = new ArrayList<>();
+        ldifContents.add("""
+            dn: cn=Philip J. Fry,ou=people,dc=planetexpress,dc=com
+            changeType: modify
+            replace: description
+            description: Array expression file 0
+            -
+            """);
+        ldifContents.add("""
+            dn: cn=Amy Wong+sn=Kroker,ou=people,dc=planetexpress,dc=com
+            changeType: modify
+            replace: description
+            description: Array expression file 1
+            -
+            """);
+
+        RunContext baseContext = Commons.getRunContext(ldifContents, ".ldif", storageInterface, runContextFactory);
+        List<java.net.URI> urisList = new ArrayList<>();
+        urisList.add(java.net.URI.create(baseContext.render("{{file0}}")));
+        urisList.add(java.net.URI.create(baseContext.render("{{file1}}")));
+        
+        RunContext runContext = runContextFactory.of(java.util.Map.of("urisList", urisList));
+
+        Modify task = Modify.builder()
+            .hostname(Property.ofValue(ldap.getHost()))
+            .port(Property.ofValue(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
+            .userDn(Property.ofValue(Commons.USER))
+            .password(Property.ofValue(Commons.PASS))
+            .inputs(new Property<>("{{ urisList }}"))
+            .build();
+            
+        assertThat(task.run(runContext), nullValue());
+
+        Search check = Commons.makeSearchTask(
+            "(description=Array expression file*)",
+            "dc=planetexpress,dc=com",
+            Arrays.asList("description"),
+            ldap
+        );
+        Search.Output result = check.run(runContext);
+        String expected = """
+            dn: cn=Amy Wong+sn=Kroker,ou=people,dc=planetexpress,dc=com
+            description: Array expression file 1
+
+            dn: cn=Philip J. Fry,ou=people,dc=planetexpress,dc=com
+            description: Array expression file 0
+            """;
+        Commons.assertResult(expected, result.getUri(), this.storageInterface);
     }
 }

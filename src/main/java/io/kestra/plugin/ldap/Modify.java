@@ -20,6 +20,7 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.executions.metrics.Timer;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
@@ -93,9 +94,9 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
         title = "LDIF change URIs",
         description = "URIs to LDIF files containing changeType records; each record is processed in order and errors on a record do not stop the remaining operations."
     )
-    @PluginProperty(dynamic = true, group = "main")
+    @PluginProperty(group = "main")
     @NotNull
-    private List<String> inputs;
+    private Property<List<String>> inputs;
 
     /**
      * CODE ------------------------------------------------------------------------------------------------------------------- //
@@ -124,7 +125,8 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
         this.logger = runContext.logger();
 
         try (LDAPConnection connection = this.getLdapConnection(runContext)) {
-            for (String inputUri : inputs) {
+            List<String> renderedInputs = runContext.render(this.inputs).asList(String.class);
+            for (String inputUri : renderedInputs) {
                 this.throwIfCancelled("LDAP modifications were cancelled");
                 try (LDIFReader reader = Utils.getLDIFReaderFromUri(inputUri, runContext)) {
                     processEntries(reader, connection);

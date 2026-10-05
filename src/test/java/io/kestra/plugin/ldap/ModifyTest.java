@@ -202,7 +202,7 @@ public class ModifyTest {
             .port(Property.ofValue(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
             .userDn(Property.ofValue(Commons.USER))
             .password(Property.ofValue(Commons.PASS))
-            .inputs(new Property<>("{{ urisList }}"))
+            .inputs(Property.ofExpression("{{ urisList }}"))
             .build();
             
         assertThat(task.run(runContext), nullValue());

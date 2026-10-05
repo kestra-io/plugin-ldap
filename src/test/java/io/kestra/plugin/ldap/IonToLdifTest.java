@@ -1,16 +1,22 @@
 package io.kestra.plugin.ldap;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
 
 import jakarta.inject.Inject;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 
 @KestraTest
 public class IonToLdifTest {
@@ -111,8 +117,41 @@ public class IonToLdifTest {
         /////////////////////////
 
         RunContext runContext = Commons.getRunContext(inputs, ".ion", storageInterface, runContextFactory);
-        IonToLdif task = IonToLdif.builder().inputs(Commons.makeKestraPebblesForXFiles(inputs.size())).build();
+        IonToLdif task = IonToLdif.builder().inputs(Property.ofValue(Commons.makeKestraPebblesForXFiles(inputs.size()))).build();
         IonToLdif.Output runOutput = task.run(runContext);
         Commons.assertFilesEq(runOutput.getUrisList(), expectations, storageInterface);
+    }
+
+    /**
+     * Tests that a single expression rendering to an entire array of URIs works.
+     */
+    @Test
+    void whole_array_expression_test() throws Exception {
+        List<String> inputs = new ArrayList<>();
+        inputs.add("{dn:\"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com\",attributes:{description:[\"Array expression file 0\"]}}");
+        inputs.add("{dn:\"cn=tony@orga.com,ou=diffusion_list,dc=orga,dc=com\",attributes:{description:[\"Array expression file 1\"]}}");
+
+        RunContext baseContext = Commons.getRunContext(inputs, ".ion", storageInterface, runContextFactory);
+        List<URI> urisList = new ArrayList<>();
+        urisList.add(URI.create(baseContext.render("{{file0}}")));
+        urisList.add(URI.create(baseContext.render("{{file1}}")));
+
+        RunContext runContext = runContextFactory.of(Map.of("urisList", urisList));
+        IonToLdif task = IonToLdif.builder().inputs(Property.ofExpression("{{ urisList }}")).build();
+        IonToLdif.Output runOutput = task.run(runContext);
+
+        assertThat(runOutput.getUrisList(), hasSize(2));
+        Commons.assertFilesEq(runOutput.getUrisList(), List.of(
+            """
+                dn: cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com
+                description: Array expression file 0
+
+                """,
+            """
+                dn: cn=tony@orga.com,ou=diffusion_list,dc=orga,dc=com
+                description: Array expression file 1
+
+                """
+        ), storageInterface);
     }
 }

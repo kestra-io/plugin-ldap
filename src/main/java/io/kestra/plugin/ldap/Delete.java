@@ -21,6 +21,7 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.executions.metrics.Timer;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
@@ -92,11 +93,11 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
 
     @Schema(
         title = "LDIF input URIs",
-        description = "URIs to LDIF files whose entries provide the target DNs to delete; each DN is deleted separately and failures do not stop the task."
+        description = "URIs to LDIF files whose entries provide the target DNs to delete, given as a list or as a single expression that renders to a list (e.g. `{{ outputs.convert_to_ldif.urisList }}`); each DN is deleted separately and failures do not stop the task."
     )
-    @PluginProperty(dynamic = true, group = "main")
+    @PluginProperty(group = "main")
     @NotNull
-    private List<String> inputs;
+    private Property<List<String>> inputs;
 
     /**
      * CODE ------------------------------------------------------------------------------------------------------------------- //
@@ -125,7 +126,8 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
         this.logger = runContext.logger();
 
         try (LDAPConnection connection = this.getLdapConnection(runContext)) {
-            for (String file : inputs) {
+            List<String> rInputs = runContext.render(this.inputs).asList(String.class);
+            for (String file : rInputs) {
                 this.throwIfCancelled("LDAP deletions were cancelled");
                 try (LDIFReader reader = Utils.getLDIFReaderFromUri(file, runContext)) {
                     processEntries(reader, connection);

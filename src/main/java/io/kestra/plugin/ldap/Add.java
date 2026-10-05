@@ -20,6 +20,7 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.executions.metrics.Timer;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
@@ -93,11 +94,11 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
 
     @Schema(
         title = "LDIF input URIs",
-        description = "One or more URIs to LDIF files in internal storage; every entry is attempted separately and errors are logged without stopping the task."
+        description = "One or more URIs to LDIF files in internal storage, given as a list or as a single expression that renders to a list (e.g. `{{ outputs.convert_to_ldif.urisList }}`); every entry is attempted separately and errors are logged without stopping the task."
     )
-    @PluginProperty(dynamic = true, group = "main")
+    @PluginProperty(group = "main")
     @NotNull
-    private List<String> inputs;
+    private Property<List<String>> inputs;
 
     /**
      * CODE ------------------------------------------------------------------------------------------------------------------- //
@@ -126,7 +127,8 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
         this.logger = runContext.logger();
 
         try (LDAPConnection connection = this.getLdapConnection(runContext)) {
-            for (String inputUri : inputs) {
+            List<String> rInputs = runContext.render(this.inputs).asList(String.class);
+            for (String inputUri : rInputs) {
                 this.throwIfCancelled("LDAP additions were cancelled");
                 try (LDIFReader reader = Utils.getLDIFReaderFromUri(inputUri, runContext)) {
                     processEntries(reader, connection);

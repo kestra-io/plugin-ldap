@@ -125,8 +125,8 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
         this.logger = runContext.logger();
 
         try (LDAPConnection connection = this.getLdapConnection(runContext)) {
-            List<String> renderedInputs = runContext.render(this.inputs).asList(String.class);
-            for (String inputUri : renderedInputs) {
+            List<String> rInputs = runContext.render(this.inputs).asList(String.class);
+            for (String inputUri : rInputs) {
                 this.throwIfCancelled("LDAP modifications were cancelled");
                 try (LDIFReader reader = Utils.getLDIFReaderFromUri(inputUri, runContext)) {
                     processEntries(reader, connection);

@@ -1,11 +1,14 @@
 package io.kestra.plugin.ldap;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
@@ -13,6 +16,8 @@ import io.kestra.core.tenant.TenantService;
 
 import jakarta.inject.Inject;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.kestra.core.exceptions.KilledException;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -33,7 +38,7 @@ public class LdifToIonTest {
             description: Some description 1""");
 
         RunContext runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
-        LdifToIon task = LdifToIon.builder().inputs(Commons.makeKestraPebblesForXFiles(inputs.size())).build();
+        LdifToIon task = LdifToIon.builder().inputs(Property.ofValue(Commons.makeKestraPebblesForXFiles(inputs.size()))).build();
 
         task.kill();
 
@@ -129,7 +134,7 @@ public class LdifToIonTest {
                                                                                                                                                                                         /////////////////////////
 
         RunContext runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
-        LdifToIon task = LdifToIon.builder().inputs(Commons.makeKestraPebblesForXFiles(inputs.size())).build();
+        LdifToIon task = LdifToIon.builder().inputs(Property.ofValue(Commons.makeKestraPebblesForXFiles(inputs.size()))).build();
         LdifToIon.Output runOutput = task.run(runContext);
         Commons.assertFilesEq(runOutput.getUrisList(), expectations, storageInterface);
     }
@@ -146,7 +151,7 @@ public class LdifToIonTest {
 
         List<String> inputs = List.of(ldifInput);
         RunContext runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
-        LdifToIon task = LdifToIon.builder().inputs(Commons.makeKestraPebblesForXFiles(inputs.size())).build();
+        LdifToIon task = LdifToIon.builder().inputs(Property.ofValue(Commons.makeKestraPebblesForXFiles(inputs.size()))).build();
         LdifToIon.Output runOutput = task.run(runContext);
 
         String ionResult;
@@ -165,5 +170,46 @@ public class LdifToIonTest {
             ionResult.contains("givenName:[\"John\"]") && ionResult.contains("sn:[\"Doe\"]"),
             "Non-empty attributes should remain unchanged."
         );
+    }
+
+    /**
+     * Tests that a single expression rendering to an entire array of URIs works,
+     * and that the resulting urisList can be passed as is to IonToLdif (the chain from #141).
+     */
+    @Test
+    void whole_array_expression_test() throws Exception {
+        List<String> inputs = new ArrayList<>();
+        inputs.add("""
+            dn: cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com
+            description: Array expression file 0
+
+            """);
+        inputs.add("""
+            dn: cn=tony@orga.com,ou=diffusion_list,dc=orga,dc=com
+            description: Array expression file 1
+
+            """);
+
+        RunContext baseContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
+        List<URI> urisList = new ArrayList<>();
+        urisList.add(URI.create(baseContext.render("{{file0}}")));
+        urisList.add(URI.create(baseContext.render("{{file1}}")));
+
+        RunContext runContext = runContextFactory.of(Map.of("urisList", urisList));
+        LdifToIon toIon = LdifToIon.builder().inputs(Property.ofExpression("{{ urisList }}")).build();
+        LdifToIon.Output ionOutput = toIon.run(runContext);
+
+        assertThat(ionOutput.getUrisList(), hasSize(2));
+        Commons.assertFilesEq(ionOutput.getUrisList(), List.of(
+            "{dn:\"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com\",attributes:{description:[\"Array expression file 0\"]}}",
+            "{dn:\"cn=tony@orga.com,ou=diffusion_list,dc=orga,dc=com\",attributes:{description:[\"Array expression file 1\"]}}"
+        ), storageInterface);
+
+        RunContext chainContext = runContextFactory.of(Map.of("outputs", Map.of("convert_to_ion", Map.of("urisList", ionOutput.getUrisList()))));
+        IonToLdif toLdif = IonToLdif.builder().inputs(Property.ofExpression("{{ outputs.convert_to_ion.urisList }}")).build();
+        IonToLdif.Output ldifOutput = toLdif.run(chainContext);
+
+        assertThat(ldifOutput.getUrisList(), hasSize(2));
+        Commons.assertFilesEq(ldifOutput.getUrisList(), inputs, storageInterface);
     }
 }

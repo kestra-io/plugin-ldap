@@ -28,6 +28,7 @@ import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
@@ -99,7 +100,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
     @Schema(
         title = "Ion input URIs",
         description = """
-            URIs to Ion files in internal storage; each entry or change record is translated to LDIF.
+            URIs to Ion files in internal storage, given as a list or as a single expression that renders to a list (e.g. `{{ outputs.convert_to_ion.urisList }}`); each entry or change record is translated to LDIF.
 
             Example of an ION file content that may be inputted:
             ```
@@ -114,9 +115,9 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
             ```
             """
     )
-    @PluginProperty(dynamic = true, group = "main")
+    @PluginProperty(group = "main")
     @NotNull
-    private List<String> inputs;
+    private Property<List<String>> inputs;
 
     /**
      * OUTPUTS ------------------------------------------------------------------------------------------------------------------- //
@@ -193,14 +194,15 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
         this.logger = runContext.logger();
         List<URI> storedResults = new ArrayList<>();
 
-        for (String path : this.inputs) {
+        List<String> rInputs = runContext.render(this.inputs).asList(String.class);
+        for (String path : rInputs) {
             try {
                 storedResults.add(transformIonToLdif(path, runContext));
             } catch (Exception e) {
                 this.logger.error(e.getMessage());
             }
         }
-        if (!this.inputs.isEmpty() && storedResults.isEmpty()) {
+        if (!rInputs.isEmpty() && storedResults.isEmpty()) {
             throw new Exception("Not a single file has been translated.");
         }
         runContext.metric(Counter.of("entries.found", this.found, "origin", "IonToLdif"));

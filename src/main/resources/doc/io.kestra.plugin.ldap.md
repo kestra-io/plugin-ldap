@@ -8,14 +8,14 @@ Set `hostname` (required), `port` (required), `userDn` (required), and `password
 
 ## Tasks
 
-`Add` adds one or more LDAP entries — set `inputs` (required, list of `kestra://` URIs pointing to LDIF files).
+`Add` adds one or more LDAP entries — set `inputs` (required, list of `kestra://` URIs, or a single expression rendering to one such as `{{ outputs.convert_to_ldif.urisList }}` pointing to LDIF files).
 
-`Modify` modifies existing LDAP entries — set `inputs` (required, list of `kestra://` URIs pointing to LDIF files with modify changeType records).
+`Modify` modifies existing LDAP entries — set `inputs` (required, list of `kestra://` URIs, or a single expression rendering to one such as `{{ outputs.convert_to_ldif.urisList }}` pointing to LDIF files with modify changeType records).
 
-`Delete` deletes LDAP entries — set `inputs` (required, list of `kestra://` URIs pointing to LDIF files with delete changeType records).
+`Delete` deletes LDAP entries — set `inputs` (required, list of `kestra://` URIs, or a single expression rendering to one such as `{{ outputs.convert_to_ldif.urisList }}` pointing to LDIF files with delete changeType records).
 
 `Search` searches the directory — optionally set `baseDn` (default `ou=system`), `filter` (default `(objectclass=*)`), `attributes` (default all user attributes), `sub` (search scope, default `SUB`), `sizeLimit`, and `pageSize`. The output includes `uri` (ION file of matching entries).
 
-`LdifToIon` converts one or more LDIF files to ION format — set `inputs` (required, list of `kestra://` URIs). The output includes `urisList` (list of converted ION file URIs).
+`LdifToIon` converts one or more LDIF files to ION format — set `inputs` (required, list of `kestra://` URIs, or a single expression rendering to one such as `{{ outputs.convert_to_ldif.urisList }}`). The output includes `urisList` (list of converted ION file URIs).
 
-`IonToLdif` converts one or more ION files back to LDIF format — set `inputs` (required, list of `kestra://` URIs). The output includes `urisList` (list of converted LDIF file URIs).
+`IonToLdif` converts one or more ION files back to LDIF format — set `inputs` (required, list of `kestra://` URIs, or a single expression rendering to one such as `{{ outputs.convert_to_ldif.urisList }}`). The output includes `urisList` (list of converted LDIF file URIs).

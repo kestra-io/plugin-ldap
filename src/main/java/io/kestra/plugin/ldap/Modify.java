@@ -92,7 +92,7 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
 
     @Schema(
         title = "LDIF change URIs",
-        description = "URIs to LDIF files containing changeType records; each record is processed in order and errors on a record do not stop the remaining operations."
+        description = "URIs to LDIF files containing changeType records, given as a list or as a single expression that renders to a list (e.g. `{{ outputs.convert_to_ldif.urisList }}`); each record is processed in order and errors on a record do not stop the remaining operations."
     )
     @PluginProperty(group = "main")
     @NotNull

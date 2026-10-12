@@ -194,7 +194,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
         this.logger = runContext.logger();
         List<URI> storedResults = new ArrayList<>();
 
-        List<String> rInputs = runContext.render(this.inputs).asList(String.class);
+        var rInputs = runContext.render(this.inputs).asList(String.class);
         for (String path : rInputs) {
             try {
                 storedResults.add(transformIonToLdif(path, runContext));

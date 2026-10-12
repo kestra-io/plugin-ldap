@@ -126,7 +126,7 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
         this.logger = runContext.logger();
 
         try (LDAPConnection connection = this.getLdapConnection(runContext)) {
-            List<String> rInputs = runContext.render(this.inputs).asList(String.class);
+            var rInputs = runContext.render(this.inputs).asList(String.class);
             for (String file : rInputs) {
                 this.throwIfCancelled("LDAP deletions were cancelled");
                 try (LDIFReader reader = Utils.getLDIFReaderFromUri(file, runContext)) {

@@ -216,7 +216,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
         this.logger = runContext.logger();
         List<URI> storedResults = new ArrayList<>();
 
-        List<String> rInputs = runContext.render(this.inputs).asList(String.class);
+        var rInputs = runContext.render(this.inputs).asList(String.class);
         for (String path : rInputs) {
             throwIfCancelled();
             try {

@@ -93,7 +93,7 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
 
     @Schema(
         title = "LDIF input URIs",
-        description = "URIs to LDIF files whose entries provide the target DNs to delete, given as a list or as a single expression that renders to a list (e.g. `{{ outputs.convert_to_ldif.urisList }}`); each DN is deleted separately and failures do not stop the task."
+        description = "URIs to LDIF files whose entries provide the target DNs to delete, given as a list or as a single expression that renders to a list (e.g. `{{ outputs.convert_to_ldif.urisList }}`; wrap a single URI as `{{ [outputs.my_task.uri] }}`); each DN is deleted separately and failures do not stop the task."
     )
     @PluginProperty(group = "main")
     @NotNull

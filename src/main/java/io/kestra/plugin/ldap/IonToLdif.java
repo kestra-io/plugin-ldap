@@ -100,7 +100,7 @@ public class IonToLdif extends Task implements RunnableTask<IonToLdif.Output> {
     @Schema(
         title = "Ion input URIs",
         description = """
-            URIs to Ion files in internal storage, given as a list or as a single expression that renders to a list (e.g. `{{ outputs.convert_to_ion.urisList }}`); each entry or change record is translated to LDIF.
+            URIs to Ion files in internal storage, given as a list or as a single expression that renders to a list (e.g. `{{ outputs.convert_to_ion.urisList }}`; wrap a single URI as `{{ [outputs.my_task.uri] }}`); each entry or change record is translated to LDIF.
 
             Example of an ION file content that may be inputted:
             ```

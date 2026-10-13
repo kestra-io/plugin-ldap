@@ -130,7 +130,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
     @Schema(
         title = "LDIF input URIs",
         description = """
-            URIs to LDIF files in internal storage, given as a list or as a single expression that renders to a list (e.g. `{{ outputs.convert_to_ldif.urisList }}`); entries and change records are converted in order.
+            URIs to LDIF files in internal storage, given as a list or as a single expression that renders to a list (e.g. `{{ outputs.convert_to_ldif.urisList }}`; wrap a single URI as `{{ [outputs.my_task.uri] }}`); entries and change records are converted in order.
 
             Example of an LDIF file content that may be inputted:
             ```

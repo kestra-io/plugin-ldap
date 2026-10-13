@@ -94,7 +94,7 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
 
     @Schema(
         title = "LDIF input URIs",
-        description = "One or more URIs to LDIF files in internal storage, given as a list or as a single expression that renders to a list (e.g. `{{ outputs.convert_to_ldif.urisList }}`); every entry is attempted separately and errors are logged without stopping the task."
+        description = "One or more URIs to LDIF files in internal storage, given as a list or as a single expression that renders to a list (e.g. `{{ outputs.convert_to_ldif.urisList }}`; wrap a single URI as `{{ [outputs.my_task.uri] }}`); every entry is attempted separately and errors are logged without stopping the task."
     )
     @PluginProperty(group = "main")
     @NotNull

@@ -16,8 +16,7 @@ tasks:
 
   - id: ldif_to_ion
     type: io.kestra.plugin.ldap.LdifToIon
-    inputs:
-      - "{{ outputs.ion_to_ldif.urisList[0] }}"
+    inputs: "{{ outputs.ion_to_ldif.urisList }}"
 
   - id: assert
     type: io.kestra.plugin.core.execution.Assert

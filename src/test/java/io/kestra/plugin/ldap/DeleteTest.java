@@ -1,8 +1,10 @@
 package io.kestra.plugin.ldap;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -62,7 +64,7 @@ public class DeleteTest {
             .port(Property.ofValue(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
             .userDn(Property.ofValue(Commons.USER))
             .password(Property.ofValue(Commons.PASS))
-            .inputs(files)
+            .inputs(Property.ofValue(files))
             .build();
     }
 
@@ -84,5 +86,48 @@ public class DeleteTest {
         Search.Output search_result = check_task.run(runContext);
         System.out.println("CAUTION !! THIS TEST DEPENDS HEAVILY ON THE SEARCH TASK, CHECK THAT ALL --SEARCH TESTS-- PASSED.");
         Commons.assertResult(null, search_result.getUri(), storageInterface);
+    }
+
+    /**
+     * Tests that a single expression rendering to an entire array of URIs works.
+     */
+    @Test
+    void whole_array_expression_test() throws Exception {
+        List<String> inputs = new ArrayList<>();
+        inputs.add("""
+            dn: cn=Hermes Conrad,ou=people,dc=planetexpress,dc=com
+            """);
+        inputs.add("""
+            dn: cn=John A. Zoidberg,ou=people,dc=planetexpress,dc=com
+            """);
+
+        RunContext baseContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
+        List<URI> urisList = new ArrayList<>();
+        urisList.add(URI.create(baseContext.render("{{file0}}")));
+        urisList.add(URI.create(baseContext.render("{{file1}}")));
+
+        RunContext runContext = runContextFactory.of(Map.of("urisList", urisList));
+        Map<String, String> entries = Map.of(
+            "Conrad", "cn=Hermes Conrad,ou=people,dc=planetexpress,dc=com",
+            "Zoidberg", "cn=John A. Zoidberg,ou=people,dc=planetexpress,dc=com"
+        );
+        for (Map.Entry<String, String> entry : entries.entrySet()) {
+            Search before = Commons.makeSearchTask("(sn=" + entry.getKey() + ")", "dc=planetexpress,dc=com", Arrays.asList("sn"), ldap);
+            Commons.assertResult("dn: " + entry.getValue() + "\nsn: " + entry.getKey() + "\n", before.run(runContext).getUri(), storageInterface);
+        }
+
+        Delete task = Delete.builder()
+            .hostname(Property.ofValue(ldap.getHost()))
+            .port(Property.ofValue(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
+            .userDn(Property.ofValue(Commons.USER))
+            .password(Property.ofValue(Commons.PASS))
+            .inputs(Property.ofExpression("{{ urisList }}"))
+            .build();
+
+        assertThat(task.run(runContext), nullValue());
+
+        Search check = Commons.makeSearchTask("(|(sn=Conrad)(sn=Zoidberg))", "dc=planetexpress,dc=com", Arrays.asList("sn"), ldap);
+        Search.Output result = check.run(runContext);
+        Commons.assertResult(null, result.getUri(), storageInterface);
     }
 }

@@ -1,7 +1,10 @@
 package io.kestra.plugin.ldap;
 
+import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -62,7 +65,7 @@ public class AddTest {
             .port(Property.ofValue(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
             .userDn(Property.ofValue(Commons.USER))
             .password(Property.ofValue(Commons.PASS))
-            .inputs(files)
+            .inputs(Property.ofValue(files))
 
             .build();
     }
@@ -132,7 +135,49 @@ public class AddTest {
             .userDn(Property.ofValue(Commons.USER))
             .password(Property.ofValue(Commons.PASS))
             .sslOptions(SslOptions.builder().insecureTrustAllCertificates(Property.ofValue(true)).build())
-            .inputs(files)
+            .inputs(Property.ofValue(files))
             .build();
+    }
+
+    /**
+     * Tests that a single expression rendering to an entire array of URIs works.
+     */
+    @Test
+    void whole_array_expression_test() throws Exception {
+        List<String> inputs = new ArrayList<>();
+        inputs.add("""
+            dn: cn=Array Zero,ou=people,dc=planetexpress,dc=com
+            objectClass: inetOrgPerson
+            cn: Array Zero
+            sn: ArrayExpression
+            """);
+        inputs.add("""
+            dn: cn=Array One,ou=people,dc=planetexpress,dc=com
+            objectClass: inetOrgPerson
+            cn: Array One
+            sn: ArrayExpression
+            """);
+
+        RunContext baseContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
+        List<URI> urisList = new ArrayList<>();
+        urisList.add(URI.create(baseContext.render("{{file0}}")));
+        urisList.add(URI.create(baseContext.render("{{file1}}")));
+
+        RunContext runContext = runContextFactory.of(Map.of("urisList", urisList));
+        Add task = Add.builder()
+            .hostname(Property.ofValue(ldap.getHost()))
+            .port(Property.ofValue(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
+            .userDn(Property.ofValue(Commons.USER))
+            .password(Property.ofValue(Commons.PASS))
+            .inputs(Property.ofExpression("{{ urisList }}"))
+            .build();
+
+        assertThat(task.run(runContext), nullValue());
+
+        for (String cn : List.of("Array Zero", "Array One")) {
+            Search check = Commons.makeSearchTask("(cn=" + cn + ")", "dc=planetexpress,dc=com", Arrays.asList("cn"), ldap);
+            Search.Output result = check.run(runContext);
+            Commons.assertResult("dn: cn=" + cn + ",ou=people,dc=planetexpress,dc=com\ncn: " + cn + "\n", result.getUri(), storageInterface);
+        }
     }
 }

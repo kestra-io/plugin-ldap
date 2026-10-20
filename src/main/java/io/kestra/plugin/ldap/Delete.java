@@ -99,6 +99,14 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
     @NotNull
     private Property<List<String>> inputs;
 
+    @Schema(
+        title = "Whether to fail the task on an LDAP error.",
+        description = "If true, the task will fail when an LDAP operation fails. If false, it will only log the error and finish with a SUCCESS state."
+    )
+    @PluginProperty
+    @Default
+    private Boolean failOnError = true;
+
     /**
      * CODE ------------------------------------------------------------------------------------------------------------------- //
      **/
@@ -135,10 +143,12 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
                     throw e;
                 } catch (Exception e) {
                     this.logger.warn("Unable to process file {} completly : {}", file, e.getMessage());
+                    if (this.failOnError) throw e;
                 }
             }
         } catch (LDAPException e_l) {
             this.logger.error("LDAP error: {}", e_l.getMessage());
+            if (this.failOnError) throw new Exception("LDAP connection/bind failed: " + e_l.getMessage(), e_l);
         }
 
         runContext.metric(Counter.of("deletions.requested", this.deletionRequests, "origin", "Delete"));
@@ -156,7 +166,7 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
      * @param reader : The LDIFReader containing the entries to be processed.
      * @param connection : The LDAPConnection to the LDAP server.
      */
-    private void processEntries(LDIFReader reader, LDAPConnection connection) throws IOException {
+    private void processEntries(LDIFReader reader, LDAPConnection connection) throws Exception {
         while (true) {
             this.throwIfCancelled("LDAP deletions were cancelled");
 
@@ -180,9 +190,11 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
                     this.deletionsDone++;
                 } else {
                     this.logger.warn("Cannot remove entry '{}', LDAP response : {}", baseDn, result.getResultString());
+                    if (this.failOnError) throw new Exception("LDAP delete refused for " + baseDn + ": " + result.getResultString());
                 }
             } catch (LDAPException e) {
                 this.logger.error("Error deleting DN '{}': {}", baseDn, e.getMessage());
+                if (this.failOnError) throw new Exception("Error deleting DN " + baseDn + ": " + e.getMessage(), e);
             }
         }
     }

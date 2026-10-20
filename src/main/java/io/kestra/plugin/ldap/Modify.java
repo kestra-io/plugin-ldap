@@ -98,6 +98,14 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
     @NotNull
     private Property<List<String>> inputs;
 
+    @Schema(
+        title = "Whether to fail the task on an LDAP error.",
+        description = "If true, the task will fail when an LDAP operation fails. If false, it will only log the error and finish with a SUCCESS state."
+    )
+    @PluginProperty
+    @Default
+    private Boolean failOnError = true;
+
     /**
      * CODE ------------------------------------------------------------------------------------------------------------------- //
      **/
@@ -134,10 +142,12 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
                     throw e;
                 } catch (Exception e) {
                     this.logger.error("Error reading LDIF file {} : {}", inputUri, e.getMessage());
+                    if (this.failOnError) throw e;
                 }
             }
         } catch (LDAPException e) {
             this.logger.error("LDAP error: {}", e.getResultString());
+            if (this.failOnError) throw new Exception("LDAP connection/bind failed: " + e.getResultString(), e);
         }
         runContext.metric(Counter.of("modifications.requested", this.modificationRequests, "origin", "input"));
         runContext.metric(Counter.of("modifications.done", this.modificationsDone, "origin", "input"));
@@ -155,7 +165,7 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
      * @param reader : The LDIFReader containing the entries to be processed.
      * @param connection : The LDAPConnection to the LDAP server.
      */
-    private void processEntries(LDIFReader reader, LDAPConnection connection) throws LDAPException, IOException, LDIFException {
+    private void processEntries(LDIFReader reader, LDAPConnection connection) throws Exception {
         while (true) {
             this.throwIfCancelled("LDAP modifications were cancelled");
 
@@ -180,9 +190,11 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
                     this.modificationsDone++;
                 } else {
                     this.logger.warn("Cannot modify entry: {}, LDAP response: {}", entry.toLDIF(), result.getResultString());
+                    if (this.failOnError) throw new Exception("LDAP modification refused for " + entry.getDN() + ": " + result.getResultString());
                 }
             } catch (LDAPException e) {
                 this.logger.error("Error modifying entry {}: {}", entry.getDN(), e.getResultString());
+                if (this.failOnError) throw new Exception("Error modifying entry " + entry.getDN() + ": " + e.getResultString(), e);
             }
         }
     }

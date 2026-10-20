@@ -21,6 +21,8 @@ import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @KestraTest
 @TestInstance(value = Lifecycle.PER_CLASS)
@@ -222,5 +224,69 @@ public class ModifyTest {
             description: Array expression file 0
             """;
         Commons.assertResult(expected, result.getUri(), this.storageInterface);
+    }
+    
+    /**
+     * Tests that a bad password throws an exception when failOnError is true.
+     */
+    @Test
+    void invalid_credentials_should_fail() throws Exception {
+        List<String> inputs = new ArrayList<>();
+        inputs.add("""
+            dn: cn=Philip J. Fry,ou=people,dc=planetexpress,dc=com
+            changeType: modify
+            replace: description
+            description: This should fail
+            -
+            """);
+
+        RunContext runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
+        
+        Modify task = Modify.builder()
+            .hostname(Property.ofValue(ldap.getHost()))
+            .port(Property.ofValue(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
+            .userDn(Property.ofValue(Commons.USER))
+            .password(Property.ofValue("wrong_password")) // INJECT WRONG PASSWORD
+            .inputs(Property.ofValue(Commons.makeKestraPebblesForXFiles(inputs.size())))
+            .failOnError(true)
+            .build();
+
+        Exception exception = assertThrows(Exception.class, () -> {
+            task.run(runContext);
+        });
+
+        assertTrue(exception.getMessage().toLowerCase().contains("failed") || exception.getMessage().toLowerCase().contains("invalid credentials"));
+    }
+
+    /**
+     * Tests that modifying a non-existent entry throws an exception when failOnError is true.
+     */
+    @Test
+    void missing_entry_should_fail() throws Exception {
+        List<String> inputs = new ArrayList<>();
+        inputs.add("""
+            dn: cn=Ghost,ou=people,dc=planetexpress,dc=com
+            changeType: modify
+            replace: description
+            description: This should fail because Ghost does not exist
+            -
+            """);
+
+        RunContext runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
+        
+        Modify task = Modify.builder()
+            .hostname(Property.ofValue(ldap.getHost()))
+            .port(Property.ofValue(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
+            .userDn(Property.ofValue(Commons.USER))
+            .password(Property.ofValue(Commons.PASS)) // CORRECT PASSWORD
+            .inputs(Property.ofValue(Commons.makeKestraPebblesForXFiles(inputs.size())))
+            .failOnError(true)
+            .build();
+
+        Exception exception = assertThrows(Exception.class, () -> {
+            task.run(runContext);
+        });
+
+        assertTrue(exception.getMessage().toLowerCase().contains("failed") || exception.getMessage().toLowerCase().contains("no such object"));
     }
 }

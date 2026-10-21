@@ -100,10 +100,10 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
     private Property<List<String>> inputs;
 
     @Schema(
-        title = "Whether to fail the task on an LDAP error.",
+        title = "Whether to fail the task on an LDAP error",
         description = "If true, the task will fail when an LDAP operation fails. If false, it will only log the error and finish with a SUCCESS state."
     )
-    @PluginProperty
+    @PluginProperty(group = "main")
     @Default
     private Boolean failOnError = true;
 

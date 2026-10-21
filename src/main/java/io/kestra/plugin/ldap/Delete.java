@@ -45,7 +45,7 @@ import io.kestra.core.exceptions.KilledException;
 @NoArgsConstructor
 @Schema(
     title = "Delete LDAP entries by DN",
-    description = "Reads LDIF records to extract DNs and submits LDAP delete requests. Each DN is handled independently; missing entries or ACL blocks are logged and processing continues."
+    description = "Reads LDIF records to extract DNs and submits LDAP delete requests. Each DN is handled independently; server-side ACLs apply. If failOnError is true, the task stops and fails on the first error. If false, missing entries or ACL blocks are logged and processing continues."
 )
 @Plugin(
     examples = {
@@ -93,7 +93,7 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
 
     @Schema(
         title = "LDIF input URIs",
-        description = "URIs to LDIF files whose entries provide the target DNs to delete, given as a list or as a single expression that renders to a list (e.g. `{{ outputs.convert_to_ldif.urisList }}`; wrap a single URI as `{{ [outputs.my_task.uri] }}`); each DN is deleted separately and failures do not stop the task."
+        description = "URIs to LDIF files whose entries provide the target DNs to delete, given as a list or as a single expression that renders to a list (e.g. `{{ outputs.convert_to_ldif.urisList }}`; wrap a single URI as `{{ [outputs.my_task.uri] }}`); each DN is deleted separately. If failOnError is true, an error stops the task."
     )
     @PluginProperty(group = "main")
     @NotNull
@@ -101,11 +101,13 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
 
     @Schema(
         title = "Whether to fail the task on an LDAP error",
-        description = "If true, the task will fail when an LDAP operation fails. If false, it will only log the error and finish with a SUCCESS state."
+        description = """
+            If true, the task will fail when an LDAP operation fails. If false, it will only log the error and finish with a SUCCESS state.
+            Defaults to true."""
     )
-    @PluginProperty(group = "main")
+    @PluginProperty(group = "reliability")
     @Default
-    private Boolean failOnError = true;
+    private Property<Boolean> failOnError = Property.ofValue(true);
 
     /**
      * CODE ------------------------------------------------------------------------------------------------------------------- //
@@ -132,30 +134,33 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
     @Override
     public VoidOutput run(RunContext runContext) throws Exception {
         this.logger = runContext.logger();
+        boolean rFailOnError = runContext.render(this.failOnError).as(Boolean.class).orElse(true);
 
-        try (LDAPConnection connection = this.getLdapConnection(runContext)) {
-            var rInputs = runContext.render(this.inputs).asList(String.class);
-            for (String file : rInputs) {
-                this.throwIfCancelled("LDAP deletions were cancelled");
-                try (LDIFReader reader = Utils.getLDIFReaderFromUri(file, runContext)) {
-                    processEntries(reader, connection);
-                } catch (KilledException e) {
-                    throw e;
-                } catch (Exception e) {
-                    this.logger.warn("Unable to process file {} completly : {}", file, e.getMessage());
-                    if (this.failOnError) throw e;
+        try {
+            try (LDAPConnection connection = this.getLdapConnection(runContext)) {
+                var rInputs = runContext.render(this.inputs).asList(String.class);
+                for (String file : rInputs) {
+                    this.throwIfCancelled("LDAP deletions were cancelled");
+                    try (LDIFReader reader = Utils.getLDIFReaderFromUri(file, runContext)) {
+                        processEntries(reader, connection, rFailOnError, file);
+                    } catch (KilledException | IllegalStateException e) {
+                        throw e;
+                    } catch (Exception e) {
+                        this.logger.warn("Unable to process file {} completly : {}", file, e.getMessage());
+                        if (rFailOnError) throw new IllegalStateException("Error reading LDIF file: " + e.getMessage(), e);
+                    }
                 }
+            } catch (LDAPException e_l) {
+                this.logger.error("LDAP error: {}", e_l.getMessage());
+                if (rFailOnError) throw new IllegalStateException("LDAP connection/bind failed: " + e_l.getMessage(), e_l);
             }
-        } catch (LDAPException e_l) {
-            this.logger.error("LDAP error: {}", e_l.getMessage());
-            if (this.failOnError) throw new Exception("LDAP connection/bind failed: " + e_l.getMessage(), e_l);
-        }
-
-        runContext.metric(Counter.of("deletions.requested", this.deletionRequests, "origin", "Delete"));
-        runContext.metric(Counter.of("deletions.done", this.deletionsDone, "origin", "Delete"));
-        if (!this.deletionsTimes.isEmpty()) {
-            Long meanTime = this.deletionsTimes.stream().mapToLong(Long::longValue).sum() / this.deletionsDone;
-            runContext.metric(Timer.of("deletions.mean.time", Duration.ofMillis(meanTime), "origin", "Delete"));
+        } finally {
+            runContext.metric(Counter.of("deletions.requested", this.deletionRequests, "origin", "Delete"));
+            runContext.metric(Counter.of("deletions.done", this.deletionsDone, "origin", "Delete"));
+            if (!this.deletionsTimes.isEmpty()) {
+                Long meanTime = this.deletionsTimes.stream().mapToLong(Long::longValue).sum() / this.deletionsDone;
+                runContext.metric(Timer.of("deletions.mean.time", Duration.ofMillis(meanTime), "origin", "Delete"));
+            }
         }
         return null;
     }
@@ -166,7 +171,7 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
      * @param reader : The LDIFReader containing the entries to be processed.
      * @param connection : The LDAPConnection to the LDAP server.
      */
-    private void processEntries(LDIFReader reader, LDAPConnection connection) throws Exception {
+    private void processEntries(LDIFReader reader, LDAPConnection connection, boolean rFailOnError, String inputUri) throws Exception {
         while (true) {
             this.throwIfCancelled("LDAP deletions were cancelled");
 
@@ -175,6 +180,7 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
                 entry = reader.readEntry();
             } catch (LDIFException e) {
                 this.logger.error("Cannot read entry: {}", e.getDataLines());
+                if (rFailOnError) throw new IllegalArgumentException("Invalid LDIF record in " + inputUri + ": " + e.getMessage(), e);
                 continue;
             }
             if (entry == null)
@@ -190,11 +196,11 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
                     this.deletionsDone++;
                 } else {
                     this.logger.warn("Cannot remove entry '{}', LDAP response : {}", baseDn, result.getResultString());
-                    if (this.failOnError) throw new Exception("LDAP delete refused for " + baseDn + ": " + result.getResultString());
+                    if (rFailOnError) throw new IllegalStateException("LDAP delete refused for " + baseDn + ": " + result.getResultString());
                 }
             } catch (LDAPException e) {
                 this.logger.error("Error deleting DN '{}': {}", baseDn, e.getMessage());
-                if (this.failOnError) throw new Exception("Error deleting DN " + baseDn + ": " + e.getMessage(), e);
+                if (rFailOnError) throw new IllegalStateException("Error deleting DN " + baseDn + ": " + e.getMessage(), e);
             }
         }
     }

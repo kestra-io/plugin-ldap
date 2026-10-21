@@ -44,7 +44,7 @@ import io.kestra.core.exceptions.KilledException;
 @NoArgsConstructor
 @Schema(
     title = "Add LDIF entries to LDAP",
-    description = "Reads LDIF records from one or more URIs and issues LDAP add requests for each entry. Operations are independent (non-transactional) and rely on server ACLs; failures on a given entry are logged and processing continues."
+    description = "Reads LDIF records from one or more URIs and issues LDAP add requests for each entry. Operations are independent (non-transactional) and rely on server ACLs. If failOnError is true, the task stops and fails on the first error. If false, failures on a given entry are logged and processing continues."
 )
 @Plugin(
     examples = {
@@ -94,7 +94,7 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
 
     @Schema(
         title = "LDIF input URIs",
-        description = "One or more URIs to LDIF files in internal storage, given as a list or as a single expression that renders to a list (e.g. `{{ outputs.convert_to_ldif.urisList }}`; wrap a single URI as `{{ [outputs.my_task.uri] }}`); every entry is attempted separately and errors are logged without stopping the task."
+        description = "One or more URIs to LDIF files in internal storage, given as a list or as a single expression that renders to a list (e.g. `{{ outputs.convert_to_ldif.urisList }}`; wrap a single URI as `{{ [outputs.my_task.uri] }}`); every entry is attempted separately. If failOnError is true, an error stops the task."
     )
     @PluginProperty(group = "main")
     @NotNull
@@ -102,11 +102,13 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
 
     @Schema(
         title = "Whether to fail the task on an LDAP error",
-        description = "If true, the task will fail when an LDAP operation fails. If false, it will only log the error and finish with a SUCCESS state."
+        description = """
+            If true, the task will fail when an LDAP operation fails. If false, it will only log the error and finish with a SUCCESS state.
+            Defaults to true."""
     )
-    @PluginProperty(group = "main")
+    @PluginProperty(group = "reliability")
     @Default
-    private Boolean failOnError = true;
+    private Property<Boolean> failOnError = Property.ofValue(true);
 
     /**
      * CODE ------------------------------------------------------------------------------------------------------------------- //
@@ -133,30 +135,34 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
     @Override
     public VoidOutput run(RunContext runContext) throws Exception {
         this.logger = runContext.logger();
+        boolean rFailOnError = runContext.render(this.failOnError).as(Boolean.class).orElse(true);
 
-        try (LDAPConnection connection = this.getLdapConnection(runContext)) {
-            var rInputs = runContext.render(this.inputs).asList(String.class);
-            for (String inputUri : rInputs) {
-                this.throwIfCancelled("LDAP additions were cancelled");
-                try (LDIFReader reader = Utils.getLDIFReaderFromUri(inputUri, runContext)) {
-                    processEntries(reader, connection);
-                } catch (KilledException e) {
-                    throw e;
-                } catch (Exception e) {
-                    this.logger.error("Error reading LDIF file {} : {}", inputUri, e.getMessage());
-                    if (this.failOnError) throw e;
+        try {
+            try (LDAPConnection connection = this.getLdapConnection(runContext)) {
+                var rInputs = runContext.render(this.inputs).asList(String.class);
+                for (String inputUri : rInputs) {
+                    this.throwIfCancelled("LDAP additions were cancelled");
+                    try (LDIFReader reader = Utils.getLDIFReaderFromUri(inputUri, runContext)) {
+                        processEntries(reader, connection, rFailOnError, inputUri);
+                    } catch (KilledException | IllegalStateException e) {
+                        throw e;
+                    } catch (Exception e) {
+                        this.logger.error("Error reading LDIF file {} : {}", inputUri, e.getMessage());
+                        if (rFailOnError) throw new IllegalStateException("Error reading LDIF file: " + e.getMessage(), e);
+                    }
                 }
+            } catch (LDAPException e) {
+                this.logger.error("LDAP error: {}", e.getResultString());
+                if (rFailOnError) throw new IllegalStateException("LDAP connection/bind failed: " + e.getResultString(), e);
             }
-        } catch (LDAPException e) {
-            this.logger.error("LDAP error: {}", e.getResultString());
-            if (this.failOnError) throw new Exception("LDAP connection/bind failed: " + e.getResultString(), e);
-        }
-        runContext.metric(Counter.of("additions.requested", this.additionRequests, "origin", "Add"));
-        runContext.metric(Counter.of("additions.done", this.additionsDone, "origin", "Add"));
+        } finally {
+            runContext.metric(Counter.of("additions.requested", this.additionRequests, "origin", "Add"));
+            runContext.metric(Counter.of("additions.done", this.additionsDone, "origin", "Add"));
 
-        if (!this.additionsTimes.isEmpty()) {
-            Long meanTime = this.additionsTimes.stream().mapToLong(Long::longValue).sum() / this.additionsDone;
-            runContext.metric(Timer.of("additions.mean.time", Duration.ofMillis(meanTime), "origin", "Add"));
+            if (!this.additionsTimes.isEmpty()) {
+                Long meanTime = this.additionsTimes.stream().mapToLong(Long::longValue).sum() / this.additionsDone;
+                runContext.metric(Timer.of("additions.mean.time", Duration.ofMillis(meanTime), "origin", "Add"));
+            }
         }
         return null;
     }
@@ -167,8 +173,7 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
      * @param reader : The LDIFReader containing the entries to be processed.
      * @param connection : The LDAPConnection to the LDAP server.
      */
-    private void processEntries(LDIFReader reader, LDAPConnection connection) throws Exception {
-        while (true) {
+    private void processEntries(LDIFReader reader, LDAPConnection connection, boolean rFailOnError, String inputUri) throws Exception {        while (true) {
             this.throwIfCancelled("LDAP additions were cancelled");
 
             Entry entry = null;
@@ -176,6 +181,7 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
                 entry = reader.readEntry();
             } catch (LDIFException e) {
                 this.logger.error("Cannot read entry: {}", e.getDataLines());
+                if (rFailOnError) throw new IllegalArgumentException("Invalid LDIF record in " + inputUri + ": " + e.getMessage(), e);
                 continue;
             }
             if (entry == null)
@@ -190,11 +196,11 @@ public class Add extends LdapConnection implements RunnableTask<VoidOutput> {
                     this.additionsDone++;
                 } else {
                     this.logger.warn("Cannot add entry: {}, LDAP response: {}", entry.toLDIF(), result.getResultString());
-                    if (this.failOnError) throw new Exception("LDAP add refused for " + entry.getDN() + ": " + result.getResultString());
+                    if (rFailOnError) throw new IllegalStateException("LDAP add refused for " + entry.getDN() + ": " + result.getResultString());
                 }
             } catch (LDAPException e) {
                 this.logger.error("Error adding entry {}: {}", entry.getDN(), e.getResultString());
-                if (this.failOnError) throw new Exception("Error adding entry " + entry.getDN() + ": " + e.getResultString(), e);
+                if (rFailOnError) throw new IllegalStateException("Error adding entry " + entry.getDN() + ": " + e.getResultString(), e);
             }
         }
     }

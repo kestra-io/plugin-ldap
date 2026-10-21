@@ -173,6 +173,57 @@ public class LdifToIonTest {
     }
 
     /**
+     * A value containing "} {" used to be split by the line break inserted between top-level Ion values,
+     * corrupting it and producing an Ion string that IonToLdif cannot read back.
+     */
+    @Test
+    void value_containing_closing_and_opening_braces_is_kept_intact() throws Exception {
+        List<String> inputs = List.of("""
+            dn: cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com
+            description: Hello {firstName} {lastName}
+
+            dn: cn=tony@orga.com,ou=diffusion_list,dc=orga,dc=com
+            description: Second entry
+
+            """);
+
+        RunContext runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
+        LdifToIon toIon = LdifToIon.builder().inputs(Property.ofValue(Commons.makeKestraPebblesForXFiles(inputs.size()))).build();
+        LdifToIon.Output ionOutput = toIon.run(runContext);
+
+        Commons.assertFilesEq(ionOutput.getUrisList(), List.of("""
+            {dn:"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Hello {firstName} {lastName}"]}}
+            {dn:"cn=tony@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Second entry"]}}"""), storageInterface);
+
+        RunContext chainContext = runContextFactory.of(Map.of("urisList", ionOutput.getUrisList()));
+        IonToLdif toLdif = IonToLdif.builder().inputs(Property.ofExpression("{{ urisList }}")).build();
+        IonToLdif.Output ldifOutput = toLdif.run(chainContext);
+
+        Commons.assertFilesEq(ldifOutput.getUrisList(), inputs, storageInterface);
+    }
+
+    /**
+     * Non-ASCII characters keep being written as Ion escapes, one entry per line, as before the writer was configured explicitly.
+     */
+    @Test
+    void non_ascii_values_stay_escaped_test() throws Exception {
+        List<String> inputs = List.of("""
+            dn: cn=ñandú,ou=diffusion_list,dc=orga,dc=com
+            description: Café
+
+            dn: cn=tony@orga.com,ou=diffusion_list,dc=orga,dc=com
+            description: Second entry""");
+
+        RunContext runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
+        LdifToIon toIon = LdifToIon.builder().inputs(Property.ofValue(Commons.makeKestraPebblesForXFiles(inputs.size()))).build();
+        LdifToIon.Output ionOutput = toIon.run(runContext);
+
+        Commons.assertFilesEq(ionOutput.getUrisList(), List.of("""
+            {dn:"cn=\\xf1and\\xfa,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Caf\\xe9"]}}
+            {dn:"cn=tony@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Second entry"]}}"""), storageInterface);
+    }
+
+    /**
      * Tests that a single expression rendering to an entire array of URIs works,
      * and that the resulting urisList can be passed as is to IonToLdif (the chain from #141).
      */

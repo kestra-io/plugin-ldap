@@ -1,6 +1,5 @@
 package io.kestra.plugin.ldap;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,7 +43,7 @@ import io.kestra.core.exceptions.KilledException;
 @NoArgsConstructor
 @Schema(
     title = "Apply LDIF changes to LDAP",
-    description = "Executes add/delete/modify/moddn operations described in LDIF change records from provided URIs. Each change is sent independently; server-side ACLs apply and failures are logged while processing continues."
+    description = "Executes add/delete/modify/moddn operations described in LDIF change records from provided URIs. Each change is sent independently; server-side ACLs apply. If failOnError is true, the task stops and fails on the first error. If false, failures are logged while processing continues."
 )
 @Plugin(
     examples = {
@@ -92,11 +91,21 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
 
     @Schema(
         title = "LDIF change URIs",
-        description = "URIs to LDIF files containing changeType records, given as a list or as a single expression that renders to a list (e.g. `{{ outputs.convert_to_ldif.urisList }}`; wrap a single URI as `{{ [outputs.my_task.uri] }}`); each record is processed in order and errors on a record do not stop the remaining operations."
+        description = "URIs to LDIF files containing changeType records, given as a list or as a single expression that renders to a list (e.g. `{{ outputs.convert_to_ldif.urisList }}`; wrap a single URI as `{{ [outputs.my_task.uri] }}`); each record is processed in order. If failOnError is true, an error stops the remaining operations."
     )
     @PluginProperty(group = "main")
     @NotNull
     private Property<List<String>> inputs;
+
+    @Schema(
+        title = "Whether to fail the task on an LDAP error",
+        description = """
+            If true, the task will fail when an LDAP operation fails. If false, it will only log the error and finish with a SUCCESS state.
+            Defaults to true."""
+    )
+    @PluginProperty(group = "reliability")
+    @Default
+    private Property<Boolean> failOnError = Property.ofValue(true);
 
     /**
      * CODE ------------------------------------------------------------------------------------------------------------------- //
@@ -123,28 +132,34 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
 
     public VoidOutput run(RunContext runContext) throws Exception {
         this.logger = runContext.logger();
+        var rFailOnError = runContext.render(this.failOnError).as(Boolean.class).orElse(true);
 
-        try (LDAPConnection connection = this.getLdapConnection(runContext)) {
-            List<String> rInputs = runContext.render(this.inputs).asList(String.class);
-            for (String inputUri : rInputs) {
-                this.throwIfCancelled("LDAP modifications were cancelled");
-                try (LDIFReader reader = Utils.getLDIFReaderFromUri(inputUri, runContext)) {
-                    processEntries(reader, connection);
-                } catch (KilledException e) {
-                    throw e;
-                } catch (Exception e) {
-                    this.logger.error("Error reading LDIF file {} : {}", inputUri, e.getMessage());
+        try {
+            try (LDAPConnection connection = this.getLdapConnection(runContext)) {
+                List<String> rInputs = runContext.render(this.inputs).asList(String.class);
+                for (String inputUri : rInputs) {
+                    this.throwIfCancelled("LDAP modifications were cancelled");
+                    try (LDIFReader reader = Utils.getLDIFReaderFromUri(inputUri, runContext)) {
+                        processEntries(reader, connection, rFailOnError, inputUri);
+                    } catch (KilledException | IllegalStateException e) {
+                        throw e;
+                    } catch (Exception e) {
+                        this.logger.error("Error reading LDIF file {} : {}", inputUri, e.getMessage());
+                        if (rFailOnError) throw new IllegalStateException("Error reading LDIF file: " + e.getMessage(), e);
+                    }
                 }
+            } catch (LDAPException e) {
+                this.logger.error("LDAP error: {}", e.getResultString());
+                if (rFailOnError) throw new IllegalStateException("LDAP connection/bind failed: " + e.getResultString(), e);
             }
-        } catch (LDAPException e) {
-            this.logger.error("LDAP error: {}", e.getResultString());
-        }
-        runContext.metric(Counter.of("modifications.requested", this.modificationRequests, "origin", "input"));
-        runContext.metric(Counter.of("modifications.done", this.modificationsDone, "origin", "input"));
+        } finally {
+            runContext.metric(Counter.of("modifications.requested", this.modificationRequests, "origin", "input"));
+            runContext.metric(Counter.of("modifications.done", this.modificationsDone, "origin", "input"));
 
-        if (!this.modificationsTimes.isEmpty()) {
-            Long meanTime = this.modificationsTimes.stream().mapToLong(Long::longValue).sum() / this.modificationsDone;
-            runContext.metric(Timer.of("modifications.mean.time", Duration.ofMillis(meanTime), "origin", "Modify"));
+            if (!this.modificationsTimes.isEmpty()) {
+                Long meanTime = this.modificationsTimes.stream().mapToLong(Long::longValue).sum() / this.modificationsDone;
+                runContext.metric(Timer.of("modifications.mean.time", Duration.ofMillis(meanTime), "origin", "Modify"));
+            }
         }
         return null;
     }
@@ -155,7 +170,7 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
      * @param reader : The LDIFReader containing the entries to be processed.
      * @param connection : The LDAPConnection to the LDAP server.
      */
-    private void processEntries(LDIFReader reader, LDAPConnection connection) throws LDAPException, IOException, LDIFException {
+    private void processEntries(LDIFReader reader, LDAPConnection connection, boolean rFailOnError, String inputUri) throws Exception {        
         while (true) {
             this.throwIfCancelled("LDAP modifications were cancelled");
 
@@ -164,6 +179,7 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
                 entry = reader.readChangeRecord();
             } catch (LDIFException e) {
                 this.logger.error("Cannot read entry: {}", e.getDataLines());
+                if (rFailOnError) throw new IllegalArgumentException("Invalid LDIF record in " + inputUri + ": " + e.getMessage(), e);
                 continue;
             }
 
@@ -180,9 +196,11 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
                     this.modificationsDone++;
                 } else {
                     this.logger.warn("Cannot modify entry: {}, LDAP response: {}", entry.toLDIF(), result.getResultString());
+                    if (rFailOnError) throw new IllegalStateException("LDAP modification refused for " + entry.getDN() + ": " + result.getResultString());
                 }
             } catch (LDAPException e) {
                 this.logger.error("Error modifying entry {}: {}", entry.getDN(), e.getResultString());
+                if (rFailOnError) throw new IllegalStateException("Error modifying entry " + entry.getDN() + ": " + e.getResultString(), e);
             }
         }
     }

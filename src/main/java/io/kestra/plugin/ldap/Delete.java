@@ -1,6 +1,5 @@
 package io.kestra.plugin.ldap;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -134,7 +133,7 @@ public class Delete extends LdapConnection implements RunnableTask<VoidOutput> {
     @Override
     public VoidOutput run(RunContext runContext) throws Exception {
         this.logger = runContext.logger();
-        boolean rFailOnError = runContext.render(this.failOnError).as(Boolean.class).orElse(true);
+        var rFailOnError = runContext.render(this.failOnError).as(Boolean.class).orElse(true);
 
         try {
             try (LDAPConnection connection = this.getLdapConnection(runContext)) {

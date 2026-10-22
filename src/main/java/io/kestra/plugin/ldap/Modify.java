@@ -1,6 +1,5 @@
 package io.kestra.plugin.ldap;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -133,7 +132,7 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
 
     public VoidOutput run(RunContext runContext) throws Exception {
         this.logger = runContext.logger();
-        boolean rFailOnError = runContext.render(this.failOnError).as(Boolean.class).orElse(true);
+        var rFailOnError = runContext.render(this.failOnError).as(Boolean.class).orElse(true);
 
         try {
             try (LDAPConnection connection = this.getLdapConnection(runContext)) {
@@ -171,7 +170,8 @@ public class Modify extends LdapConnection implements RunnableTask<VoidOutput> {
      * @param reader : The LDIFReader containing the entries to be processed.
      * @param connection : The LDAPConnection to the LDAP server.
      */
-    private void processEntries(LDIFReader reader, LDAPConnection connection, boolean rFailOnError, String inputUri) throws Exception {        while (true) {
+    private void processEntries(LDIFReader reader, LDAPConnection connection, boolean rFailOnError, String inputUri) throws Exception {        
+        while (true) {
             this.throwIfCancelled("LDAP modifications were cancelled");
 
             LDIFChangeRecord entry = null;

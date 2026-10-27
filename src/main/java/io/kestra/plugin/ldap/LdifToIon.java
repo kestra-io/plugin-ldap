@@ -249,7 +249,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
         throws IOException, IllegalVariableEvaluationException, NullPointerException, IllegalArgumentException, IllegalStateException {
         try (
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            IonWriter ionWriter = IonTextWriterBuilder.standard()
+            var ionWriter = IonTextWriterBuilder.standard()
                 .withWriteTopLevelValuesOnNewLines(true)
                 .withNewLineType(IonTextWriterBuilder.NewLineType.LF)
                 .withCharsetAscii()

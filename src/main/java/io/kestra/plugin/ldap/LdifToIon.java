@@ -1,7 +1,6 @@
 package io.kestra.plugin.ldap;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -259,7 +258,7 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
 
             processEntries(ldifReader, ionWriter);
             ionWriter.finish();
-            File tempFile = runContext.workingDir().createTempFile(byteArrayOutputStream.toByteArray(), ".ion").toFile();
+            var tempFile = runContext.workingDir().createTempFile(byteArrayOutputStream.toByteArray(), ".ion").toFile();
             return runContext.storage().putFile(tempFile);
         }
     }

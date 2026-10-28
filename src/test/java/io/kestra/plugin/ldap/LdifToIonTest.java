@@ -172,6 +172,51 @@ public class LdifToIonTest {
         );
     }
 
+    // regression for #149
+    @Test
+    void value_containing_closing_and_opening_braces_is_kept_intact() throws Exception {
+        var inputs = List.of("""
+            dn: cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com
+            description: Hello {firstName} {lastName}
+
+            dn: cn=tony@orga.com,ou=diffusion_list,dc=orga,dc=com
+            description: Second entry
+
+            """);
+
+        var runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
+        var toIon = LdifToIon.builder().inputs(Property.ofValue(Commons.makeKestraPebblesForXFiles(inputs.size()))).build();
+        var ionOutput = toIon.run(runContext);
+
+        Commons.assertFilesEq(ionOutput.getUrisList(), List.of("""
+            {dn:"cn=bob@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Hello {firstName} {lastName}"]}}
+            {dn:"cn=tony@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Second entry"]}}"""), storageInterface);
+
+        var chainContext = runContextFactory.of(Map.of("urisList", ionOutput.getUrisList()));
+        var toLdif = IonToLdif.builder().inputs(Property.ofExpression("{{ urisList }}")).build();
+        var ldifOutput = toLdif.run(chainContext);
+
+        Commons.assertFilesEq(ldifOutput.getUrisList(), inputs, storageInterface);
+    }
+
+    @Test
+    void non_ascii_values_stay_escaped_test() throws Exception {
+        var inputs = List.of("""
+            dn: cn=ñandú,ou=diffusion_list,dc=orga,dc=com
+            description: Café
+
+            dn: cn=tony@orga.com,ou=diffusion_list,dc=orga,dc=com
+            description: Second entry""");
+
+        var runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
+        var toIon = LdifToIon.builder().inputs(Property.ofValue(Commons.makeKestraPebblesForXFiles(inputs.size()))).build();
+        var ionOutput = toIon.run(runContext);
+
+        Commons.assertFilesEq(ionOutput.getUrisList(), List.of("""
+            {dn:"cn=\\xf1and\\xfa,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Caf\\xe9"]}}
+            {dn:"cn=tony@orga.com,ou=diffusion_list,dc=orga,dc=com",attributes:{description:["Second entry"]}}"""), storageInterface);
+    }
+
     /**
      * Tests that a single expression rendering to an entire array of URIs works,
      * and that the resulting urisList can be passed as is to IonToLdif (the chain from #141).

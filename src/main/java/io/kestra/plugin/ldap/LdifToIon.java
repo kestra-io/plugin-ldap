@@ -1,7 +1,6 @@
 package io.kestra.plugin.ldap;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -10,10 +9,9 @@ import java.util.List;
 
 import org.slf4j.Logger;
 
-import com.amazon.ion.IonSystem;
 import com.amazon.ion.IonType;
 import com.amazon.ion.IonWriter;
-import com.amazon.ion.system.IonSystemBuilder;
+import com.amazon.ion.system.IonTextWriterBuilder;
 import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.ChangeType;
 import com.unboundid.ldap.sdk.Entry;
@@ -248,17 +246,19 @@ public class LdifToIon extends Task implements RunnableTask<LdifToIon.Output> {
      */
     private URI transformLdifToIon(String ldifFilePath, RunContext runContext)
         throws IOException, IllegalVariableEvaluationException, NullPointerException, IllegalArgumentException, IllegalStateException {
-        IonSystem ionSystem = IonSystemBuilder.standard().build();
         try (
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            IonWriter ionWriter = ionSystem.newTextWriter(byteArrayOutputStream);
+            var ionWriter = IonTextWriterBuilder.standard()
+                .withWriteTopLevelValuesOnNewLines(true)
+                .withNewLineType(IonTextWriterBuilder.NewLineType.LF)
+                .withCharsetAscii()
+                .build(byteArrayOutputStream);
             LDIFReader ldifReader = Utils.getLDIFReaderFromUri(ldifFilePath, runContext)
         ) {
 
             processEntries(ldifReader, ionWriter);
             ionWriter.finish();
-            String resultContent = byteArrayOutputStream.toString().replace("} {", "}\n{");
-            File tempFile = runContext.workingDir().createTempFile(resultContent.getBytes(), ".ion").toFile();
+            var tempFile = runContext.workingDir().createTempFile(byteArrayOutputStream.toByteArray(), ".ion").toFile();
             return runContext.storage().putFile(tempFile);
         }
     }

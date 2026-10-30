@@ -8,6 +8,8 @@ Set `hostname` (required), `port` (required), `userDn` (required), and `password
 
 ## Tasks
 
+By default, write tasks (`Modify`, `Add`, `Delete`) will fail the execution if an LDAP operation fails (e.g., invalid credentials, missing entries, or insufficient access). Set `failOnError` to `false` to log the errors and allow the task to succeed leniently.
+
 `Add` adds one or more LDAP entries — set `inputs` (required, list of `kestra://` URIs, or a single expression rendering to one such as `{{ outputs.convert_to_ldif.urisList }}` pointing to LDIF files).
 
 `Modify` modifies existing LDAP entries — set `inputs` (required, list of `kestra://` URIs, or a single expression rendering to one such as `{{ outputs.convert_to_ldif.urisList }}` pointing to LDIF files with modify changeType records).

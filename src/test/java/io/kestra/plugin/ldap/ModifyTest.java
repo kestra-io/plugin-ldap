@@ -21,6 +21,8 @@ import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @KestraTest
 @TestInstance(value = Lifecycle.PER_CLASS)
@@ -222,5 +224,84 @@ public class ModifyTest {
             description: Array expression file 0
             """;
         Commons.assertResult(expected, result.getUri(), this.storageInterface);
+    }
+    
+    /**
+     * Tests that a bad password throws an exception when failOnError is true.
+     */
+    @Test
+    void invalid_credentials_should_fail() throws Exception {
+        var inputs = new ArrayList<String>();
+        inputs.add("""
+            dn: cn=Philip J. Fry,ou=people,dc=planetexpress,dc=com
+            changeType: modify
+            replace: description
+            description: This should fail
+            -
+            """);
+
+        var runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
+        
+        var task = Modify.builder()
+            .hostname(Property.ofValue(ldap.getHost()))
+            .port(Property.ofValue(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
+            .userDn(Property.ofValue(Commons.USER))
+            .password(Property.ofValue("wrong_password"))
+            .inputs(Property.ofValue(Commons.makeKestraPebblesForXFiles(inputs.size())))
+            .failOnError(Property.ofValue(true))
+            .build();
+
+        var exception = assertThrows(IllegalStateException.class, () -> task.run(runContext));
+        assertThat(exception.getMessage().toLowerCase(), containsString("invalid credentials"));
+    }
+
+    @Test
+    void missing_entry_should_fail() throws Exception {
+        var inputs = new ArrayList<String>();
+        inputs.add("""
+            dn: cn=Ghost,ou=people,dc=planetexpress,dc=com
+            changeType: modify
+            replace: description
+            description: This should fail because Ghost does not exist
+            -
+            """);
+
+        var runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
+        
+        var task = Modify.builder()
+            .hostname(Property.ofValue(ldap.getHost()))
+            .port(Property.ofValue(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
+            .userDn(Property.ofValue(Commons.USER))
+            .password(Property.ofValue(Commons.PASS))
+            .inputs(Property.ofValue(Commons.makeKestraPebblesForXFiles(inputs.size())))
+            .failOnError(Property.ofValue(true))
+            .build();
+
+        var exception = assertThrows(IllegalStateException.class, () -> task.run(runContext));
+        assertThat(exception.getMessage().toLowerCase(), containsString("no such object"));
+    }
+    @Test
+    void failOnError_false_should_succeed() throws Exception {
+        var inputs = new ArrayList<String>();
+        inputs.add("""
+            dn: cn=Ghost,ou=people,dc=planetexpress,dc=com
+            changeType: modify
+            replace: description
+            description: This should fail quietly
+            -
+            """);
+
+        var runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
+        
+        var task = Modify.builder()
+            .hostname(Property.ofValue(ldap.getHost()))
+            .port(Property.ofValue(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
+            .userDn(Property.ofValue(Commons.USER))
+            .password(Property.ofValue("wrong_password"))
+            .inputs(Property.ofValue(Commons.makeKestraPebblesForXFiles(inputs.size())))
+            .failOnError(Property.ofValue(false))
+            .build();
+
+        assertThat(task.run(runContext), nullValue());
     }
 }

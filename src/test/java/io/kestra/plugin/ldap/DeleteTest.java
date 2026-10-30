@@ -23,6 +23,8 @@ import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @KestraTest
 @TestInstance(value = Lifecycle.PER_CLASS)
@@ -129,5 +131,43 @@ public class DeleteTest {
         Search check = Commons.makeSearchTask("(|(sn=Conrad)(sn=Zoidberg))", "dc=planetexpress,dc=com", Arrays.asList("sn"), ldap);
         Search.Output result = check.run(runContext);
         Commons.assertResult(null, result.getUri(), storageInterface);
+    }
+    @Test
+    void missing_entry_should_fail() throws Exception {
+        var inputs = new ArrayList<String>();
+        inputs.add("dn: cn=Ghost,ou=people,dc=planetexpress,dc=com\nchangeType: delete\n");
+
+        var runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
+        
+        var task = Delete.builder()
+            .hostname(Property.ofValue(ldap.getHost()))
+            .port(Property.ofValue(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
+            .userDn(Property.ofValue(Commons.USER))
+            .password(Property.ofValue(Commons.PASS))
+            .inputs(Property.ofValue(Commons.makeKestraPebblesForXFiles(inputs.size())))
+            .failOnError(Property.ofValue(true))
+            .build();
+
+        var exception = assertThrows(IllegalStateException.class, () -> task.run(runContext));
+        assertThat(exception.getMessage().toLowerCase(), containsString("no such object"));
+    }
+
+    @Test
+    void failOnError_false_should_succeed() throws Exception {
+        var inputs = new ArrayList<String>();
+        inputs.add("dn: cn=Ghost,ou=people,dc=planetexpress,dc=com\nchangeType: delete\n");
+
+        var runContext = Commons.getRunContext(inputs, ".ldif", storageInterface, runContextFactory);
+        
+        var task = Delete.builder()
+            .hostname(Property.ofValue(ldap.getHost()))
+            .port(Property.ofValue(ldap.getMappedPort(Commons.EXPOSED_PORTS[0])))
+            .userDn(Property.ofValue(Commons.USER))
+            .password(Property.ofValue("wrong_password"))
+            .inputs(Property.ofValue(Commons.makeKestraPebblesForXFiles(inputs.size())))
+            .failOnError(Property.ofValue(false))
+            .build();
+
+        assertThat(task.run(runContext), nullValue());
     }
 }

@@ -174,11 +174,6 @@ public abstract class LdapConnection extends Task implements WorkerJobLifecycle 
         }
 
         try {
-            LDAPConnection connection = createLdapConnection(
-                runContext.render(hostname).as(String.class).orElseThrow(),
-                (runContext.render(port).as(Integer.class).orElseThrow()),
-                trustAllCertificates
-            );
             BindRequest bindRequest;
 
             switch (authMethodProperty) {
@@ -213,7 +208,19 @@ public abstract class LdapConnection extends Task implements WorkerJobLifecycle 
                 default:
                     throw new IllegalArgumentException(String.format("Invalid authentication method \"%s\".", authMethodProperty));
             }
-            connection.bind(bindRequest);
+
+            // Opened only once the bind request is built, and closed if the bind fails: the caller never gets it then.
+            LDAPConnection connection = createLdapConnection(
+                runContext.render(hostname).as(String.class).orElseThrow(),
+                (runContext.render(port).as(Integer.class).orElseThrow()),
+                trustAllCertificates
+            );
+            try {
+                connection.bind(bindRequest);
+            } catch (LDAPException e) {
+                connection.close();
+                throw e;
+            }
             return connection;
         } catch (LDAPException e) {
             logger.error(

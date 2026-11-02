@@ -1,14 +1,21 @@
 package io.kestra.plugin.ldap;
 
+import java.security.GeneralSecurityException;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 
+import com.unboundid.ldap.listener.InMemoryDirectoryServer;
+import com.unboundid.ldap.listener.InMemoryDirectoryServerConfig;
+import com.unboundid.ldap.sdk.LDAPConnection;
+import com.unboundid.ldap.sdk.LDAPException;
 import com.unboundid.ldap.sdk.SASLQualityOfProtection;
 
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 
@@ -17,6 +24,7 @@ import jakarta.inject.Inject;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @KestraTest
 @TestInstance(value = Lifecycle.PER_CLASS)
@@ -81,5 +89,40 @@ public class LdapConnectionTest {
         );
 
         assertThat(rendered, is(expected));
+    }
+
+    @Test
+    void failed_bind_closes_the_connection() throws Exception {
+        var config = new InMemoryDirectoryServerConfig("dc=example,dc=com");
+        config.addAdditionalBindCredentials("cn=admin", "secret");
+        var server = new InMemoryDirectoryServer(config);
+        server.startListening();
+
+        try {
+            var opened = new AtomicReference<LDAPConnection>();
+            var task = new Search() {
+                {
+                    hostname = Property.ofValue("localhost");
+                    port = Property.ofValue(server.getListenPort());
+                    userDn = Property.ofValue("cn=admin");
+                    password = Property.ofValue("wrong");
+                }
+
+                @Override
+                public LDAPConnection createLdapConnection(String hostname, int port, boolean trustAllCertificates) throws LDAPException, GeneralSecurityException {
+                    var connection = super.createLdapConnection(hostname, port, trustAllCertificates);
+                    opened.set(connection);
+                    return connection;
+                }
+            };
+
+            RunContext runContext = runContextFactory.of();
+            assertThrows(LDAPException.class, () -> task.getLdapConnection(runContext));
+
+            // The caller never receives the connection, so nobody else can close it
+            assertThat(opened.get().isConnected(), is(false));
+        } finally {
+            server.shutDown(true);
+        }
     }
 }
